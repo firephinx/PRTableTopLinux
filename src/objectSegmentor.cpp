@@ -414,70 +414,7 @@ void personalRobotics::ObjectSegmentor::planeSegment()
 	else
 		Sleep(20);
 }
-bool personalRobotics::ObjectSegmentor::findTablePlane()
-{
-	if (!pointCloudPtr)
-		return false;
-	size_t numPoints = depthHeight*depthWidth;
-	pclPtr->clear();
-	pclPtr->resize(numPoints);
-	size_t dstPoint = 0;
-	pointCloudMutex.lock();
-	for (size_t point = 0; point < numPoints; point++)
-	{
-		if (pointCloudPtr[point].Z > minThreshold && pointCloudPtr[point].Z < maxThreshold)
-		{
-			pclPtr.get()->points[dstPoint].x = pointCloudPtr[point].X;
-			pclPtr.get()->points[dstPoint].y = pointCloudPtr[point].Y;
-			pclPtr.get()->points[dstPoint].z = pointCloudPtr[point].Z;
-			dstPoint++;
-		}
-	}
-	pointCloudMutex.unlock();
-	pclPtr->resize(dstPoint);
 
-	// Segment out the plane using least squares and RANSAC
-	pcl::SACSegmentation<pcl::PointXYZ> seg;
-	pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
-	seg.setOptimizeCoefficients(true);
-	seg.setModelType(pcl::SACMODEL_PLANE);
-	seg.setMethodType(pcl::SAC_RANSAC);
-	seg.setMaxIterations(maxRansacIters);
-	seg.setDistanceThreshold(ransacMargin);
-	seg.setInputCloud(pclPtr);
-	seg.segment(*inliers, *planePtr);
-
-	// Change the sign of all number so that 'd' in ax+by+cz+d is always positive
-	float signOfD = (planePtr->values[3]) / abs(planePtr->values[3]);
-	planePtr->values[0] = planePtr->values[0] * signOfD;
-	planePtr->values[1] = planePtr->values[1] * signOfD;
-	planePtr->values[2] = planePtr->values[2] * signOfD;
-	planePtr->values[3] = planePtr->values[3] * signOfD;
-
-	std::cout << "findTablePlane() computed plane values: "
-		  << planePtr->values[0] << " "
-		  << planePtr->values[1] << " "
-		  << planePtr->values[2] << " "
-		  << planePtr->values[3] << std::endl;
-	
-	// Find pixel size
-	CameraSpacePoint keyPoints[3];
-	ColorSpacePoint projectedKeyPoints[3];
-	keyPoints[0] = { 0, 0, (-1 * (planePtr->values[3] + planePtr->values[0] * 0 + planePtr->values[1] * 0) / planePtr->values[2]) };		//(0  , 0   ,z1)
-	keyPoints[1] = { 0.1, 0, (-1 * (planePtr->values[3] + planePtr->values[0] * 0.1 + planePtr->values[1] * 0) / planePtr->values[2]) };	//(0.1, 0   ,z2)
-	keyPoints[2] = { 0, 0.1, (-1 * (planePtr->values[3] + planePtr->values[0] * 0 + planePtr->values[1] * 0.1) / planePtr->values[2]) };	//(0  , 0.1 ,z3)
-	coordinateMapperPtr->MapCameraPointsToColorSpace(3, keyPoints, 3, projectedKeyPoints);
-	double delX = sqrt((projectedKeyPoints[1].X - projectedKeyPoints[0].X)*(projectedKeyPoints[1].X - projectedKeyPoints[0].X) + (projectedKeyPoints[1].Y - projectedKeyPoints[0].Y)*(projectedKeyPoints[1].Y - projectedKeyPoints[0].Y));
-	double delY = sqrt((projectedKeyPoints[2].X - projectedKeyPoints[0].X)*(projectedKeyPoints[2].X - projectedKeyPoints[0].X) + (projectedKeyPoints[2].Y - projectedKeyPoints[0].Y)*(projectedKeyPoints[2].Y - projectedKeyPoints[0].Y));
-
-	// Value of 0.1 used above is in meters, to get pixel size in mm, divide 100 by delX and delY
-	rgbPixelSize.x = 100 / delX;
-	rgbPixelSize.y = 100 / delY;
-
-	std::cout << "findTablePlane() computed rgbPixelSize: (" << rgbPixelSize.x << ", " << rgbPixelSize.y <<")"<< std::endl;
-	// Return
-	return true;
-}
 void personalRobotics::ObjectSegmentor::startSegmentor()
 {
 	std::cout << "Starting object segmentor thread" << std::endl;
@@ -486,6 +423,7 @@ void personalRobotics::ObjectSegmentor::startSegmentor()
 	segementorThread = std::thread(&personalRobotics::ObjectSegmentor::segmentorThreadRoutine, this);
 	std::cout << "Started object segmentor thread" << std::endl;
 }
+
 void personalRobotics::ObjectSegmentor::segmentorThreadRoutine()
 {
 	while (!stopSegmentorFlag.get())
@@ -494,6 +432,7 @@ void personalRobotics::ObjectSegmentor::segmentorThreadRoutine()
 		Sleep(25);
 	}
 }
+
 void personalRobotics::ObjectSegmentor::stopSegmentor()
 {
 	std::cout << "Stopping object segmentor thread" << std::endl;
@@ -503,11 +442,13 @@ void personalRobotics::ObjectSegmentor::stopSegmentor()
 		segementorThread.join();
 	std::cout << "Stopped object segmentor thread" << std::endl;
 }
+
 void personalRobotics::ObjectSegmentor::pauseSegmentor()
 {
 	pauseThreadFlag.set(true);
 	std::cout << "Paused object segmentor thread" << std::endl;
 }
+
 void personalRobotics::ObjectSegmentor::resumeSegmentor()
 {
 	pauseThreadFlag.set(false);
@@ -547,47 +488,4 @@ bool personalRobotics::ObjectSegmentor::onBoundingEdges(pcl::PointXYZ point)
 		return true;
 	
 	return false;
-}
-void personalRobotics::createCheckerboard(cv::Mat& checkerboard, int width, int height, int& numBlocksX, int& numBlocksY)
-{
-	checkerboard.create(height, width, CV_8UC1);
-	int blockSize = (personalRobotics::gcd(height, width));
-	numBlocksX = width / blockSize;
-	numBlocksY = height / blockSize;
-	while (numBlocksX < 6 || numBlocksY < 6)
-	{
-		if (blockSize % 2 != 0)
-			std::cout << "Deadlock! check or change the resolution of display" << std::endl;
-		else
-		{
-			blockSize /= 2;
-			numBlocksX = width / blockSize;
-			numBlocksY = height / blockSize;
-		}
-	}
-	std::cout << "Creating checkerboard with width: " << width << " height: " << height << " block size: " << blockSize << std::endl;
-	int color = 0;
-	for (int row = 0; row<(numBlocksY); row++)
-	{
-		if (color == 0)
-			color = 255;
-		else
-			color = 0;
-		for (int col = 0; col<(numBlocksX); col++)
-		{
-			if (color == 0)
-				color = 255;
-			else
-				color = 0;
-			cv::Scalar cvcolor(color);
-			cv::Point p1(col*blockSize, row*blockSize);
-			cv::Point p2((col + 1)*blockSize, (row + 1)*blockSize);
-			if (row == 0 || col == 0 || row == numBlocksY - 1 || col == numBlocksX - 1)
-				rectangle(checkerboard, p1, p2, cv::Scalar(255), CV_FILLED);
-			else
-				rectangle(checkerboard, p1, p2, cvcolor, CV_FILLED);
-		}
-	}
-	numBlocksX -= 3;
-	numBlocksY -= 3;
 }

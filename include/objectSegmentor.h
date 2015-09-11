@@ -123,7 +123,6 @@ namespace personalRobotics
 			/*!	Estimates the table plane equation using least squares fit. The outlies are pruned using
 				RANSAC. The function assumes that the table top is the most dominant planar feature in
 				the field of view of the kinects depth camera.*/
-			bool findTablePlane();
 			void startSegmentor();				//!< Starts the segmentor thread that runs segmentorThreadRoutine().
 			void segmentorThreadRoutine();		//!< Runs planeSegment() in a loop, handling the pausing and stopping of the segmentor.
 			void stopSegmentor();				//!< Stops the segmentorThreadRoutine and mergers the thread cleanly with the parent thread.
@@ -133,7 +132,5 @@ namespace personalRobotics
 			float calculateEntityDifferences(cv::Point2f IDcentroid, cv::Point2f objectCentroid, float IDangle, float objectAngle, cv::Size2f IDBoundingSize, cv::Size2f objectBoundingSize); //!< Calculates a score that is a representative of difference between two entities based on pose and size. Smaller the score, better the match.
 			bool onBoundingEdges(pcl::PointXYZ point);	//!< Return true if a point is close to the any of the plane in @link planeNormals @endlink . false otherwise.
 	};
-
-	void createCheckerboard(cv::Mat& checkerboard, int width, int height, int& numBlocksX, int& numBlocksY); //!< Creates a white bordered checkerboard pattern with the specified width and height in pixels and fills the numBlocksX and numBlocksY with the numbers of interior points in the generated checkerboard in X and Y direction respectively.
 }
 #endif

@@ -146,14 +146,12 @@ int main(int argc, char *argv[])
   {
     listener.waitForNewFrame(frames);
     libfreenect2::Frame *rgb = frames[libfreenect2::Frame::Color];
-    libfreenect2::Frame *ir = frames[libfreenect2::Frame::Ir];
     libfreenect2::Frame *depth = frames[libfreenect2::Frame::Depth];
 
     registration->apply(rgb, depth, &undistorted, &registered);
 
 #ifdef LIBFREENECT2_WITH_OPENGL_SUPPORT
     viewer.addFrame("RGB", rgb);
-    viewer.addFrame("ir", ir);
     viewer.addFrame("depth", depth);
     viewer.addFrame("registered", &registered);
 
