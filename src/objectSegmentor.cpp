@@ -49,6 +49,11 @@ bool personalRobotics::ObjectSegmentor::getStatic()
 }
 
 // Setters
+void personalRobotics::ObjectSegmentor::setPlaneCoefficients(pcl::ModelCoefficients::Ptr PlanePtr)
+{
+	planePtr = PlanePtr;
+}
+
 void personalRobotics::ObjectSegmentor::setHomography(cv::Mat inHomography, int width, int height)
 {
 	homography = inHomography.clone();
@@ -193,7 +198,7 @@ void personalRobotics::ObjectSegmentor::setHomography(cv::Mat inHomography, int 
 }
 
 // Routines
-void personalRobotics::ObjectSegmentor::planeSegment()
+void personalRobotics::ObjectSegmentor::segment(cv::Mat color, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclPtr)
 {
 	if (!pauseThreadFlag.get())
 	{
@@ -415,7 +420,7 @@ void personalRobotics::ObjectSegmentor::planeSegment()
 		Sleep(20);
 }
 
-void personalRobotics::ObjectSegmentor::startSegmentor()
+/*void personalRobotics::ObjectSegmentor::startSegmentor()
 {
 	std::cout << "Starting object segmentor thread" << std::endl;
 	pauseThreadFlag.set(false);
@@ -453,7 +458,7 @@ void personalRobotics::ObjectSegmentor::resumeSegmentor()
 {
 	pauseThreadFlag.set(false);
 	std::cout << "Resumed object segmentor thread" << std::endl;
-}
+}*/
 
 // Helper functions
 float personalRobotics::ObjectSegmentor::calculateEntityDifferences(cv::Point2f IDcentroid, cv::Point2f objectCentroid, float IDangle, float objectAngle, cv::Size2f IDBoundingSize, cv::Size2f objectBoundingSize)

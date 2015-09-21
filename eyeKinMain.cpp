@@ -37,6 +37,9 @@
 #include "viewer.h"
 #endif
 
+#include "objectSegmentor.h"
+#include "calib.h"
+#include "utilities.h"
 
 bool protonect_shutdown = false;
 
@@ -47,6 +50,7 @@ void sigint_handler(int s)
 
 int main(int argc, char *argv[])
 {
+  //Original protonect code
   std::string program_path(argv[0]);
   size_t executable_name_idx = program_path.rfind("Protonect");
 
@@ -142,6 +146,33 @@ int main(int argc, char *argv[])
   viewer.initialize();
 #endif
 
+  // Eyekin calibration function calls
+  listener.waitForNewFrame(frames);
+  libfreenect2::Frame *calibrgb = frames[libfreenect2::Frame::Color];
+  libfreenect2::Frame *calibdepth = frames[libfreenect2::Frame::Depth];
+  registration->apply(rgb, depth, &undistorted, &registered);
+
+
+  personalRobotics::Calib::Calib calib;
+  personalRobotics::ObjectSegmentor::ObjectSegmentor OS;
+  calib.createLookUp(calibrgb->width, calibrgb->height, dev->getColorCameraParams());
+  cv::Mat lookupX, lookupY;
+  pcl::PointCloud<pcl::PointXYZRGB>::Ptr RGBPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
+  personalRobotics::createCloud(lookupX, lookupY, calibdepth, calibrgb, *RGBPointCloud);
+
+  /**RGBPointCloud = personalRobotics::convertRegisteredDepthToXYZRGBPointCloud(&registered, dev->getColorCameraParams());*/
+  while(!calib.isCalibrated())
+  {
+    calib.calibrate();
+  }
+
+  // Accesses the homography and planePtr from the calibration object
+  cv::Mat homography = calib.getHomography();
+  pcl::ModelCoefficients::Ptr planePtr = calib.getPlanePtr();
+  OS.setPlaneCoefficients(planePtr);
+  OS.setHomography(homography);
+
+  //Main Segmentation Loop waiting for new frames
   while(!protonect_shutdown)
   {
     listener.waitForNewFrame(frames);
@@ -149,6 +180,11 @@ int main(int argc, char *argv[])
     libfreenect2::Frame *depth = frames[libfreenect2::Frame::Depth];
 
     registration->apply(rgb, depth, &undistorted, &registered);
+
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr RGBPC(new pcl::PointCloud<pcl::PointXYZRGB>);
+    personalRobotics::createCloud(lookupX, lookupY, depth, rgb, *RGBPC);
+
+    /**RGBPointCloud = personalRobotics::convertRegisteredDepthToXYZRGBPointCloud(&registered);*/
 
 #ifdef LIBFREENECT2_WITH_OPENGL_SUPPORT
     viewer.addFrame("RGB", rgb);

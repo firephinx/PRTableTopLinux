@@ -86,7 +86,7 @@ namespace personalRobotics
 					@li @c Reproject each cluster onto the RGB image and compute the centroid, principle axes and 2D pose. 
 					@li @c Match each cluster's attributes with the attributes of the clusters in the previous frame and create an association between the clusters across the frames.
 					@li @c Check if the scene has come to rest and generate data for each entity in the list of entities. See @link generateData() @endlink. */
-			void planeSegment();
+			void segment(cv::Mat color, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclPtr);
 		public:
 			// Constructor and Destructor
 			//!	Default constructor. Initializes all the parameters to the defaults specified in @link setting.h @endlink .
@@ -98,10 +98,10 @@ namespace personalRobotics
 			~ObjectSegmentor();
 
 			// Thread safety measures
-			void lockList();					//!< Locks the @link entityList @endlink. The callers should call unlockList() once the processing is completed.
+			/*void lockList();					//!< Locks the @link entityList @endlink. The callers should call unlockList() once the processing is completed.
 			void unlockList();					//!< Unlocks the @link entityList @endlink. This method should not be called before a call to lockList() by the same thread.
 			void lockPcl();						//!< Locks @link pclPtr @endlink. The caller should call unlockPcl() once the processing is completed.
-			void unlockPcl();					//!< Unlocks @link pclPtr @endlink. This method should not be called before a call to lockPcl() by the same thread.
+			void unlockPcl();					//!< Unlocks @link pclPtr @endlink. This method should not be called before a call to lockPcl() by the same thread.*/
 			MutexBool newListGenerated;			//!< Set to true each time the planeSegment() method generates a new list of entities. The consumer function can set it to false after acknowleding the arrival of new list and use it as a signal to wait on.
 			MutexBool pauseThreadFlag;			//!< Pauses the segmentorRoutine() to pause producing new @link enityList @endlink . Refer @sa pauseSegmentor(), resumeSegmentor()
 
@@ -116,18 +116,19 @@ namespace personalRobotics
 			/*! Sets the homography between the color camera of the kinect and the projected screen followed by,
 				computing the @link planeNormals @endlink . This routine needs the @link planePtr @endlink be
 				set by findTablePlane() function.*/
-			void setHomography(cv::Mat inhomography, int width, int height);
+			void setHomography(cv::Mat inhomography, int inWidth = DEFAULT_SCREEN_WIDTH, int inHeight = DEFAULT_SCREEN_HEIGHT);
+			void setPlaneCoefficients(pcl::ModelCoefficients::Ptr PlanePtr);
 
 			// Routines
 			//!	Estimates the table plane equation using least squares fit with RANSAC.
 			/*!	Estimates the table plane equation using least squares fit. The outlies are pruned using
 				RANSAC. The function assumes that the table top is the most dominant planar feature in
 				the field of view of the kinects depth camera.*/
-			void startSegmentor();				//!< Starts the segmentor thread that runs segmentorThreadRoutine().
+			/*void startSegmentor();				//!< Starts the segmentor thread that runs segmentorThreadRoutine().
 			void segmentorThreadRoutine();		//!< Runs planeSegment() in a loop, handling the pausing and stopping of the segmentor.
 			void stopSegmentor();				//!< Stops the segmentorThreadRoutine and mergers the thread cleanly with the parent thread.
 			void pauseSegmentor();				//!< Pauses the production of the @link entityList @endlist .
-			void resumeSegmentor();				//!< Resumes the segmetor.
+			void resumeSegmentor();				//!< Resumes the segmetor.*/
 			bool calculateOverallChangeInFrames(std::vector<IDLookUp> cIDList);		//!< Returns true if the scene is static for a certain number of frames.
 			float calculateEntityDifferences(cv::Point2f IDcentroid, cv::Point2f objectCentroid, float IDangle, float objectAngle, cv::Size2f IDBoundingSize, cv::Size2f objectBoundingSize); //!< Calculates a score that is a representative of difference between two entities based on pose and size. Smaller the score, better the match.
 			bool onBoundingEdges(pcl::PointXYZ point);	//!< Return true if a point is close to the any of the plane in @link planeNormals @endlink . false otherwise.

@@ -1,7 +1,8 @@
 #ifndef __UTILITIES_H__
 #define __UTILITIES_H__
 
-#include <mutex>
+//#include <mutex>
+#include "pcl.h"
 
 namespace personalRobotics
 {
@@ -11,7 +12,7 @@ namespace personalRobotics
 	{
 		std::cout << inMessage << std::endl;
 	}
-	template<typename T> class MutexType
+	/*template<typename T> class MutexType
 	{
 	protected:
 		std::mutex mMutex;
@@ -112,10 +113,13 @@ namespace personalRobotics
 		}
 	};
 
-	typedef MutexType<bool> MutexBool;
+	typedef MutexType<bool> MutexBool;*/
 
-
-        /// Return the current date to the second in a standard format.
-        std::string full_date_string(void);
+    /// Return the current date to the second in a standard format.
+    std::string full_date_string(void);
+    void createCloud(const cv::Mat lookupX, const cv::Mat lookupY, const cv::Mat &depth, const cv::Mat &color, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &cloud) const;
+    cv::Point convertPointCloudPointToRGBImageCoordinates(pcl::PointXYZRGB);
+    
+    //void convertRegisteredDepthToXYZRGBPointCloud (const boost::shared_ptr<openni_wrapper::DepthImage>& depth_image, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &cloud) const;
 }
 #endif

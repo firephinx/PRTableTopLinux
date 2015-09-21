@@ -6,16 +6,15 @@ personalRobotics::Calib::Calib()
 
 }
 
+personalRobotics::Calib::Calib(size_t ColorWidth, size_t ColorHeight)
+{
+	colorWidth = ColorWidth;
+	colorHeight = ColorHeight; 
+}
+
 personalRobotics::Calib::~Calib()
 {
 
-}
-
-personalRobotics::Calib::resetCalibration()
-{
-	// Log
-	std::cout << "Resetting the calibration and counter" << std::endl;
-	
 }
 
 // Calibration methods
@@ -25,7 +24,6 @@ void personalRobotics::Calib::findTable()
 	pclPtr->clear();
 	pclPtr->resize(numPoints);
 	size_t dstPoint = 0;
-	pointCloudMutex.lock();
 	for (size_t point = 0; point < numPoints; point++)
 	{
 		if (pointCloudPtr[point].Z > minThreshold && pointCloudPtr[point].Z < maxThreshold)
@@ -111,11 +109,32 @@ cv::Mat personalRobotics::Calib::computeHomography(bool usePlaceHolder, cv::Mat 
 	}
 }
 
+void personalRobotics::Calib::createLookup(Freenect2Device::ColorCameraParams color)
+{
+  const float fx = color.fx;
+  const float fy = color.fy;
+  const float cx = color.cx;
+  const float cy = color.cy;
+  float *it;
+
+  lookupY = cv::Mat(1, colorHeight, CV_32F);
+  it = lookupY.ptr<float>();
+  for(size_t r = 0; r < colorHeight; ++r, ++it)
+  {
+    *it = (r - cy) * fy;
+  }
+
+  lookupX = cv::Mat(1, colorWidth, CV_32F);
+  it = lookupX.ptr<float>();
+  for(size_t c = 0; c < colorWidth; ++c, ++it)
+  {
+    *it = (c - cx) * fx;
+  }
+}
+
 /* Calibration method for the kinect using a checkerboard. */
 void personalRobotics::Calib::calibrate(bool usePlaceholder, int inWidth, int inHeight)
 {
-	// Reset
-	reset();
 	
 	// Setup
 	screenWidth = inWidth;
@@ -166,19 +185,24 @@ void personalRobotics::Calib::calibrate(bool usePlaceholder, int inWidth, int in
 			projPixelSize.x = colorPixelSize.x * delX;
 			projPixelSize.y = colorPixelSize.y * delY;
 			std::cout << "Calibration complete. Projector pixel size is: (" << projPixelSize.x << "," << projPixelSize.y << ")\n";
-			if (segmentorEverStarted.get())
-			{
-				segmentor.resumeSegmentor();
-			}
-			else
-			{
-				segmentorEverStarted.set(true);
-				segmentor.startSegmentor();
-			}	
 		}
 	}
 }
 
+//Accessors
+/* Accessor function that returns the homography */
+cv::Mat personalRobotics::Calib::getHomography()
+{
+	return homography;
+}
+
+/* Accessor function that returns the model coefficients of the plane */
+pcl::ModelCoefficients::Ptr personalRobotics::Calib::getPlanePtr()
+{
+	return planePtr;
+}
+
+// Helper Functions
 void personalRobotics::Calib::createCheckerboard(cv::Mat& checkerboard, int width, int height, int& numBlocksX, int& numBlocksY)
 {
 	checkerboard.create(height, width, CV_8UC1);
