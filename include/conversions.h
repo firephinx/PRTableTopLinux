@@ -12,10 +12,14 @@ namespace personalRobotics
 		cv::Mat lookupX,lookupY;
 		public:
 		// Constructor and destructor
-		Conversions();
 		Conversions(const cv::Mat LookupX, const cv::Mat LookupY);
 		~Conversions();
 	
+		// Setters
+		void setLookUpX(const cv::Mat LookupX);
+		void setLookUpY(const cv::Mat LookupY);
+
+		// Functions
 		void createCloud(const cv::Mat &depth, const cv::Mat &color, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &cloud) const;
 	    cv::Point convertPointCloudPointToRGBCoordinates(pcl::PointXYZRGB);
 

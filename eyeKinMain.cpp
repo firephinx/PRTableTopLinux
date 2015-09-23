@@ -148,19 +148,28 @@ int main(int argc, char *argv[])
 
   // Eyekin calibration function calls
   listener.waitForNewFrame(frames);
-  libfreenect2::Frame *calibrgb = frames[libfreenect2::Frame::Color];
-  libfreenect2::Frame *calibdepth = frames[libfreenect2::Frame::Depth];
-  registration->apply(rgb, depth, &undistorted, &registered);
+  cv::Mat calibrgb, calibdepth;
 
+  libfreenect2::Frame *calibrgbFrame = frames[libfreenect2::Frame::Color];
+  libfreenect2::Frame *calibdepthFrame = frames[libfreenect2::Frame::Depth];
+  cv::Mat(calibrgbFrame->height, calibrgbFrame->width, CV_32FC1, calibrgbFrame->data).copyTo(calibrgb);
+  cv::Mat(calibdepthFrame->height, calibdepthFrame->width, CV_32FC1, calibdepthFrame->data).copyTo(calibdepth);
 
-  personalRobotics::Calib::Calib calib;
-  personalRobotics::ObjectSegmentor::ObjectSegmentor OS;
-  calib.createLookUp(calibrgb->width, calibrgb->height, dev->getColorCameraParams());
+  // Initializes a Calibration object
+  personalRobotics::Calib::Calib calib(calibrgb, calibdepth, calibrgb->width, calibrgb->height);
+  calib.createLookUp(dev->getColorCameraParams());
   cv::Mat lookupX, lookupY;
+  lookupX = calib.getLookUpX();
+  lookupY = calib.getLookUpY();
+
+  // Initializes a Conversions object
+  personalRobotics::Conversions::Conversions Conv(lookupX, lookupY);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr RGBPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-  personalRobotics::createCloud(lookupX, lookupY, calibdepth, calibrgb, *RGBPointCloud);
+  Conv.createCloud(calibdepth, calibrgb, *RGBPointCloud);
 
   /**RGBPointCloud = personalRobotics::convertRegisteredDepthToXYZRGBPointCloud(&registered, dev->getColorCameraParams());*/
+ 
+  calib.setCalibCloud(*RGBPointCloud);
   while(!calib.isCalibrated())
   {
     calib.calibrate();
@@ -169,17 +178,23 @@ int main(int argc, char *argv[])
   // Accesses the homography and planePtr from the calibration object
   cv::Mat homography = calib.getHomography();
   pcl::ModelCoefficients::Ptr planePtr = calib.getPlanePtr();
+
+  // Initializes an ObjectSegmentor object
+  personalRobotics::ObjectSegmentor::ObjectSegmentor OS;
   OS.setPlaneCoefficients(planePtr);
   OS.setHomography(homography);
 
   //Main Segmentation Loop waiting for new frames
   while(!protonect_shutdown)
   {
+    cv::Mat rgb, depth;
     listener.waitForNewFrame(frames);
-    libfreenect2::Frame *rgb = frames[libfreenect2::Frame::Color];
-    libfreenect2::Frame *depth = frames[libfreenect2::Frame::Depth];
+    libfreenect2::Frame *rgbFrame = frames[libfreenect2::Frame::Color];
+    libfreenect2::Frame *depthFrame = frames[libfreenect2::Frame::Depth];
+    cv::Mat(rgbFrame->height, rgbFrame->width, CV_32FC1, rgbFrame->data).copyTo(rgb);
+    cv::Mat(depthFrame->height, depthFrame->width, CV_32FC1, depthFrame->data).copyTo(depth);
 
-    registration->apply(rgb, depth, &undistorted, &registered);
+    registration->apply(rgbFrame, depthFrame, &undistorted, &registered);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr RGBPC(new pcl::PointCloud<pcl::PointXYZRGB>);
     personalRobotics::createCloud(lookupX, lookupY, depth, rgb, *RGBPC);

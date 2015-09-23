@@ -1,15 +1,15 @@
 #include "calib.h"
 
 // Constructor and Destructor
-personalRobotics::Calib::Calib()
+personalRobotics::Calib::Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, size_t ColorWidth, size_t ColorHeight)
 {
-
-}
-
-personalRobotics::Calib::Calib(size_t ColorWidth, size_t ColorHeight)
-{
+	calibRGB = CalibRGB;
+	calibDepth = CalibDepth;
 	colorWidth = ColorWidth;
 	colorHeight = ColorHeight; 
+	doneCalibrating = false;
+	tablePlaneFound = false;
+	homographyFound = false;
 }
 
 personalRobotics::Calib::~Calib()
@@ -147,16 +147,16 @@ void personalRobotics::Calib::calibrate(bool usePlaceholder, int inWidth, int in
 	int attempts = 0;
 	int maxAttempts = 5;
 	std::cout << "Starting calibration with\nwidth: " << screenWidth << " height: " << screenHeight << " numXCorners: " << numCheckerPtsX << " numYCorners: " << numCheckerPtsY << std::endl;
-	while (isCalibrating.get())
+	while (!doneCalibrating)
 	{	    
-	  if (!tablePlaneFound.get() && segmentor.isDepthAllocated.get()) {
-	         std::cout << "calling findTable()" << std::endl;
+		if (!tablePlaneFound) {
+	    	std::cout << "calling findTable()" << std::endl;
 			findTable();
-	  }				
+	  	}				
 
-		if (!homographyFound.get() && segmentor.isColorAllocated.get())
+		if (!homographyFound)
 		{
-		  	    std::cout << "calling findHomography()" << std::endl;
+		  	std::cout << "calling findHomography()" << std::endl;
 			findHomography(usePlaceholder);
 			attempts++;
 			if (attempts > maxAttempts)
@@ -165,12 +165,10 @@ void personalRobotics::Calib::calibrate(bool usePlaceholder, int inWidth, int in
 				findHomography(true);
 			}
 		}
-		
 
-		if (tablePlaneFound.get() && homographyFound.get())
+		if (tablePlaneFound && homographyFound)
 		{
-			isCalibrating.set(false);
-			segmentor.setHomography(homography, screenWidth, screenHeight);
+			doneCalibrating = true;
 
 			// Map size of rgb and projector pixels
 			std::vector<cv::Point2f> rgbKeyPoints;
@@ -189,6 +187,12 @@ void personalRobotics::Calib::calibrate(bool usePlaceholder, int inWidth, int in
 	}
 }
 
+//Setters
+void personalRobotics::Calib::setCalibCloud(pcl::PointCloud<pcl::PointXYZRGB> calibRGBPointCloud)
+{
+	calibPC = calibRGBPointCloud;
+}
+
 //Accessors
 /* Accessor function that returns the homography */
 cv::Mat personalRobotics::Calib::getHomography()
@@ -196,10 +200,24 @@ cv::Mat personalRobotics::Calib::getHomography()
 	return homography;
 }
 
+cv::Mat personalRobotics::Calib::getLookUpX()
+{
+	return lookupX;
+}
+cv::Mat personalRobotics::Calib::getLookUpY()
+{
+	return lookupY;
+}
+
 /* Accessor function that returns the model coefficients of the plane */
 pcl::ModelCoefficients::Ptr personalRobotics::Calib::getPlanePtr()
 {
 	return planePtr;
+}
+
+bool personalRobotics::Calib::isCalibrated()
+{
+	return doneCalibrating;
 }
 
 // Helper Functions

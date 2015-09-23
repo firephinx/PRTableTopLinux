@@ -1,20 +1,24 @@
 #include "conversions.h"
 
 // Constructor and Destructor
-personalRobotics::Conversions::Conversions()
-{
-
-}
-
 personalRobotics::Conversions::Conversions(const cv::Mat LookupX, const cv::Mat LookupY)
 {
   lookupX = LookupX;
-  lookupY = LookupY; 
+  lookupY = LookupY;
 }
 
 personalRobotics::Conversions::~Conversions()
 {
 
+}
+
+personalRobotics::Conversions::setLookUpX(const cv::Mat LookupX)
+{
+  lookupX = LookupX;
+}
+personalRobotics::Conversions::setLookUpY(const cv::Mat LookupY)
+{
+  lookupY = LookupY;
 }
 
 void personalRobotics::Conversions::createCloud(const cv::Mat &depth, const cv::Mat &color, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud) const
