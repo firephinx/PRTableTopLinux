@@ -21,7 +21,7 @@ namespace personalRobotics
 
 		// Functions
 		void createCloud(const cv::Mat &depth, const cv::Mat &color, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &cloud) const;
-	    cv::Point convertPointCloudPointToRGBCoordinates(pcl::PointXYZRGB);
+	    cv::Point convertPointCloudPointToRGBCoordinates(pcl::PointXYZRGB pointXYZRGB);
 
     	//void convertRegisteredDepthToXYZRGBPointCloud (const boost::shared_ptr<openni_wrapper::DepthImage>& depth_image, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &cloud) const;
 	};

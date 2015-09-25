@@ -56,8 +56,17 @@ void personalRobotics::Conversions::createCloud(const cv::Mat &depth, const cv::
 }
 
 
-cv::Point personalRobotics::Conversions::convertPointCloudPointToRGBCoordinates(pcl::PointXYZRGB)
+cv::Point2f personalRobotics::Conversions::convertPointCloudPointToRGBCoordinates(pcl::PointXYZRGB pointXYZRGB)
 {
+  float x = pointXYZRGB.x;
+  float y = pointXYZRGB.y;
+  float z = pointXYZRGB.z;
+  float newX = x/z;
+  float newY = y/z;
+  cv::Point2f colorXY;
+  const float y = lookupY.at<float>(0, r);
+  const float *itX = lookupX.ptr<float>();
+
 
 }
 
