@@ -148,31 +148,33 @@ int main(int argc, char *argv[])
 
   // Eyekin calibration function calls
   listener.waitForNewFrame(frames);
-  cv::Mat calibrgb, calibdepth;
 
+  cv::Mat calibrgb, calibdepth;
   libfreenect2::Frame *calibrgbFrame = frames[libfreenect2::Frame::Color];
   libfreenect2::Frame *calibdepthFrame = frames[libfreenect2::Frame::Depth];
   cv::Mat(calibrgbFrame->height, calibrgbFrame->width, CV_32FC1, calibrgbFrame->data).copyTo(calibrgb);
   cv::Mat(calibdepthFrame->height, calibdepthFrame->width, CV_32FC1, calibdepthFrame->data).copyTo(calibdepth);
 
   // Initializes a Calibration object
-  personalRobotics::Calib::Calib calib(calibrgb, calibdepth, calibrgb->width, calibrgb->height);
-  calib.createLookUp(dev->getColorCameraParams());
-  cv::Mat lookupX, lookupY;
-  lookupX = calib.getLookUpX();
-  lookupY = calib.getLookUpY();
+  personalRobotics::Calib::Calib calib(calibrgb, calibdepth, calibrgb->width, calibrgb->height, dev->getColorCameraParams());
+  calib.createLookup();
 
-  // Initializes a Conversions object
-  personalRobotics::Conversions::Conversions Conv(lookupX, lookupY);
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr RGBPointCloud(new pcl::PointCloud<pcl::PointXYZRGB>);
-  Conv.createCloud(calibdepth, calibrgb, *RGBPointCloud);
+  listener.release(frames);
 
-  /**RGBPointCloud = personalRobotics::convertRegisteredDepthToXYZRGBPointCloud(&registered, dev->getColorCameraParams());*/
- 
-  calib.setCalibCloud(*RGBPointCloud);
+  // Checks to make sure everything is calibrated before moving on to the object segmentation code.
   while(!calib.isCalibrated())
   {
     calib.calibrate();
+    if(!calib.isCalibrated())
+    {
+      listener.waitForNewFrame(frames);
+      *calibrgbFrame = frames[libfreenect2::Frame::Color];
+      *calibdepthFrame = frames[libfreenect2::Frame::Depth];
+      cv::Mat(calibrgbFrame->height, calibrgbFrame->width, CV_32FC1, calibrgbFrame->data).copyTo(calibrgb);
+      cv::Mat(calibdepthFrame->height, calibdepthFrame->width, CV_32FC1, calibdepthFrame->data).copyTo(calibdepth)
+      calib.inputNewFrames(calibrgb, calibdepth);
+      listener.release(frames);
+    }
   }
 
   // Accesses the homography and planePtr from the calibration object
@@ -194,12 +196,12 @@ int main(int argc, char *argv[])
     cv::Mat(rgbFrame->height, rgbFrame->width, CV_32FC1, rgbFrame->data).copyTo(rgb);
     cv::Mat(depthFrame->height, depthFrame->width, CV_32FC1, depthFrame->data).copyTo(depth);
 
-    registration->apply(rgbFrame, depthFrame, &undistorted, &registered);
+    //registration->apply(rgbFrame, depthFrame, &undistorted, &registered);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr RGBPC(new pcl::PointCloud<pcl::PointXYZRGB>);
-    personalRobotics::createCloud(lookupX, lookupY, depth, rgb, *RGBPC);
+    personalRobotics::Calib::createCloud(depth, rgb, *RGBPC);
 
-    /**RGBPointCloud = personalRobotics::convertRegisteredDepthToXYZRGBPointCloud(&registered);*/
+    OS.segment(rgb, RGBPC);
 
 #ifdef LIBFREENECT2_WITH_OPENGL_SUPPORT
     viewer.addFrame("RGB", rgb);

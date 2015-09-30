@@ -8,6 +8,7 @@ namespace personalRobotics
 {
 	class Calib
 	{
+	friend class Conversions;
 	protected:
 		// Flags
 		bool doneCalibrating;
@@ -25,6 +26,10 @@ namespace personalRobotics
 		cv::Mat calibRGB, calibDepth;
 		pcl::PointCloud<pcl::PointXYZRGB> calibPC;
 		cv::Mat lookupX, lookUpY;
+		float fx;
+  		float fy;
+  		float cx;
+  		float cy;
 
 		// Configurations
 		int screenWidth;
@@ -34,10 +39,10 @@ namespace personalRobotics
 
 		/* Protected Functions */
 		void computeHomography(bool placeholder);
-		void createLookup(Freenect2Device::ColorCameraParams color);
+		void createLookup();
 	public:
 		// Constructor and destructor
-		Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, size_t ColorWidth = DEFAULT_COLOR_WIDTH, size_t ColorHeight = DEFAULT_COLOR_HEIGHT);
+		Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, size_t ColorWidth = DEFAULT_COLOR_WIDTH, size_t ColorHeight = DEFAULT_COLOR_HEIGHT, Freenect2Device::ColorCameraParams color);
 		~Calib();
 
 		// Calibration methods
@@ -46,7 +51,7 @@ namespace personalRobotics
 		void calibrate(bool placeholder=true, int inWidth = DEFAULT_SCREEN_WIDTH, int inHeight = DEFAULT_SCREEN_HEIGHT);
 
 		// Setters
-		void setCalibCloud(pcl::PointCloud<pcl::PointXYZRGB> calibRGBPointCloud);
+		void inputNewFrames(cv::Mat CalibRGB, cv::Mat CalibDepth);
 
 		// Accessors
 		cv::Mat getHomography();
@@ -57,6 +62,10 @@ namespace personalRobotics
 
 		// Helper Functions
 		void createCheckerboard(cv::Mat& checkerboard, int width, int height, int& numBlocksX, int& numBlocksY);
+	
+		// Conversion Utility Functions
+		void createCloud(const cv::Mat &depth, const cv::Mat &color, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &cloud) const;
+	    void convertPointXYZRGBToPoint2f(pcl::PointXYZRGB pointXYZRGB, cv::Point2f *colorPoint);
 	};
 }
 

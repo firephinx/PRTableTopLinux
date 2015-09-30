@@ -1,15 +1,20 @@
 #include "calib.h"
 
 // Constructor and Destructor
-personalRobotics::Calib::Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, size_t ColorWidth, size_t ColorHeight)
+personalRobotics::Calib::Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, size_t ColorWidth, size_t ColorHeight, Freenect2Device::ColorCameraParams color)
 {
 	calibRGB = CalibRGB;
 	calibDepth = CalibDepth;
 	colorWidth = ColorWidth;
 	colorHeight = ColorHeight; 
+	fx = color.fx;
+  	fy = color.fy;
+  	cx = color.cx;
+  	cy = color.cy;
 	doneCalibrating = false;
 	tablePlaneFound = false;
 	homographyFound = false;
+	createLookup();
 }
 
 personalRobotics::Calib::~Calib()
@@ -62,12 +67,15 @@ void personalRobotics::Calib::findTable()
 		  << planePtr->values[3] << std::endl;
 	
 	// Find pixel size
-	CameraSpacePoint keyPoints[3];
-	ColorSpacePoint projectedKeyPoints[3];
+	pcl::PointXYZ keyPoints[3];
+	cv::Point2f *projectedKeyPoints[3];
 	keyPoints[0] = { 0, 0, (-1 * (planePtr->values[3] + planePtr->values[0] * 0 + planePtr->values[1] * 0) / planePtr->values[2]) };		//(0  , 0   ,z1)
 	keyPoints[1] = { 0.1, 0, (-1 * (planePtr->values[3] + planePtr->values[0] * 0.1 + planePtr->values[1] * 0) / planePtr->values[2]) };	//(0.1, 0   ,z2)
 	keyPoints[2] = { 0, 0.1, (-1 * (planePtr->values[3] + planePtr->values[0] * 0 + planePtr->values[1] * 0.1) / planePtr->values[2]) };	//(0  , 0.1 ,z3)
-	coordinateMapperPtr->MapCameraPointsToColorSpace(3, keyPoints, 3, projectedKeyPoints);
+	for(int i = 0; i < 3)
+	{
+		convertPointXYZToPoint2f(keyPoints[i], projectedKeyPoints[i]);
+	}
 	double delX = sqrt((projectedKeyPoints[1].X - projectedKeyPoints[0].X)*(projectedKeyPoints[1].X - projectedKeyPoints[0].X) + (projectedKeyPoints[1].Y - projectedKeyPoints[0].Y)*(projectedKeyPoints[1].Y - projectedKeyPoints[0].Y));
 	double delY = sqrt((projectedKeyPoints[2].X - projectedKeyPoints[0].X)*(projectedKeyPoints[2].X - projectedKeyPoints[0].X) + (projectedKeyPoints[2].Y - projectedKeyPoints[0].Y)*(projectedKeyPoints[2].Y - projectedKeyPoints[0].Y));
 
@@ -109,12 +117,8 @@ cv::Mat personalRobotics::Calib::computeHomography(bool usePlaceHolder, cv::Mat 
 	}
 }
 
-void personalRobotics::Calib::createLookup(Freenect2Device::ColorCameraParams color)
+void personalRobotics::Calib::createLookup()
 {
-  const float fx = color.fx;
-  const float fy = color.fy;
-  const float cx = color.cx;
-  const float cy = color.cy;
   float *it;
 
   lookupY = cv::Mat(1, colorHeight, CV_32F);
@@ -135,7 +139,6 @@ void personalRobotics::Calib::createLookup(Freenect2Device::ColorCameraParams co
 /* Calibration method for the kinect using a checkerboard. */
 void personalRobotics::Calib::calibrate(bool usePlaceholder, int inWidth, int inHeight)
 {
-	
 	// Setup
 	screenWidth = inWidth;
 	screenHeight = inHeight;
@@ -188,9 +191,10 @@ void personalRobotics::Calib::calibrate(bool usePlaceholder, int inWidth, int in
 }
 
 //Setters
-void personalRobotics::Calib::setCalibCloud(pcl::PointCloud<pcl::PointXYZRGB> calibRGBPointCloud)
+void inputNewFrames(cv::Mat CalibRGB, cv::Mat CalibDepth)
 {
-	calibPC = calibRGBPointCloud;
+	calibRGB = CalibRGB;
+	calibDepth = CalibDepth;
 }
 
 //Accessors
@@ -264,3 +268,120 @@ void personalRobotics::Calib::createCheckerboard(cv::Mat& checkerboard, int widt
 	numBlocksX -= 3;
 	numBlocksY -= 3;
 }
+
+void personalRobotics::Calib::createCloud(const cv::Mat &depth, const cv::Mat &color, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud) const
+{
+  const float badPoint = std::numeric_limits<float>::quiet_NaN();
+
+  #pragma omp parallel for
+  for(int r = 0; r < depth.rows; ++r)
+  {
+    pcl::PointXYZRGB *itP = &cloud->points[r * depth.cols];
+    const uint16_t *itD = depth.ptr<uint16_t>(r);
+    const cv::Vec3b *itC = color.ptr<cv::Vec3b>(r);
+    const float y = lookupY.at<float>(0, r);
+    const float *itX = lookupX.ptr<float>();
+
+    for(size_t c = 0; c < (size_t)depth.cols; ++c, ++itP, ++itD, ++itC, ++itX)
+    {
+      register const float depthValue = *itD / 1000.0f;
+      // Check for invalid measurements
+      if(isnan(depthValue) || depthValue <= 0.001)
+      {
+        // not valid
+        itP->x = itP->y = itP->z = badPoint;
+        itP->rgba = 0;
+        continue;
+      }
+      itP->z = depthValue;
+      itP->x = *itX * depthValue;
+      itP->y = y * depthValue;
+      itP->b = itC->val[0];
+      itP->g = itC->val[1];
+      itP->r = itC->val[2];
+    }
+  }
+}
+
+void personalRobotics::Calib::convertPointXYZToPoint2f(pcl::PointXYZ pointXYZ, cv::Point2f *colorPoint)
+{
+  float x = pointXYZ.x;
+  float y = pointXYZ.y;
+  float z = pointXYZ.z;
+  float newX = ((x/z)/fx) + cx;
+  float newY = ((y/z)/fy) + cy;
+  cv::Point2f colorXY(newX, newY);
+  *colorPoint = colorXY;  
+}
+
+/*pcl::PointCloud<pcl::PointXYZRGB>::Ptr personalRobotics::convertRegisteredDepthToXYZRGBPointCloud (const boost::shared_ptr<openni_wrapper::DepthImage>& depth_image) const
+{
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud (new pcl::PointCloud <pcl::PointXYZ>);
+
+  cloud->height = depth_height_;
+  cloud->width = depth_width_;
+  cloud->is_dense = false;
+
+  cloud->points.resize (cloud->height * cloud->width);
+
+  //I inserted 525 as Julius Kammerl said as focal length
+  register float constant = 1.0f / device_->getDepthFocalLength (depth_width_);
+
+  //the frame id is completely ignored
+  if (device_->isDepthRegistered ())
+    cloud->header.frame_id = rgb_frame_id_;
+  else
+    cloud->header.frame_id = depth_frame_id_;
+
+  register int centerX = (cloud->width >> 1);
+  int centerY = (cloud->height >> 1);
+
+  //I also ignore invalid values completely
+  float bad_point = std::numeric_limits<float>::quiet_NaN ();
+
+  //this section is used to get the depth data array, I replaced it with my code (and you did it with your code)
+  register const unsigned short* depth_map = depth_image->getDepthMetaData ().Data ();
+  if (depth_image->getWidth() != depth_width_ || depth_image->getHeight () != depth_height_)
+  {
+    static unsigned buffer_size = 0;
+    static boost::shared_array<unsigned short> depth_buffer (0);
+
+    if (buffer_size < depth_width_ * depth_height_)
+    {
+      buffer_size = depth_width_ * depth_height_;
+      depth_buffer.reset (new unsigned short [buffer_size]);
+    }
+    depth_image->fillDepthImageRaw (depth_width_, depth_height_, depth_buffer.get ());
+    depth_map = depth_buffer.get ();
+  }
+
+  //these for loops are mostly used as they are
+  register int depth_idx = 0;
+  for (int v = -centerY; v < centerY; ++v)
+  {
+    for (register int u = -centerX; u < centerX; ++u, ++depth_idx)
+    {
+      pcl::PointXYZ& pt = cloud->points[depth_idx];
+     
+      //This part is used for invalid measurements, I removed it
+      if (depth_map[depth_idx] == 0 ||
+          depth_map[depth_idx] == depth_image->getNoSampleValue () ||
+          depth_map[depth_idx] == depth_image->getShadowValue ())
+      {
+        // not valid
+        pt.x = pt.y = pt.z = bad_point;
+        continue;
+      }
+      pt.z = depth_map[depth_idx] * 0.001f;
+      pt.x = static_cast<float> (u) * pt.z * constant;
+      pt.y = static_cast<float> (v) * pt.z * constant;
+    }
+  }
+  cloud->sensor_origin_.setZero ();
+  cloud->sensor_orientation_.w () = 0.0f;
+  cloud->sensor_orientation_.x () = 1.0f;
+  cloud->sensor_orientation_.y () = 0.0f;
+  cloud->sensor_orientation_.z () = 0.0f;  
+  return (cloud);
+} 
+*/
