@@ -102,8 +102,8 @@ namespace personalRobotics
 			void unlockList();					//!< Unlocks the @link entityList @endlink. This method should not be called before a call to lockList() by the same thread.
 			void lockPcl();						//!< Locks @link pclPtr @endlink. The caller should call unlockPcl() once the processing is completed.
 			void unlockPcl();					//!< Unlocks @link pclPtr @endlink. This method should not be called before a call to lockPcl() by the same thread.*/
-			MutexBool newListGenerated;			//!< Set to true each time the planeSegment() method generates a new list of entities. The consumer function can set it to false after acknowleding the arrival of new list and use it as a signal to wait on.
-			MutexBool pauseThreadFlag;			//!< Pauses the segmentorRoutine() to pause producing new @link enityList @endlink . Refer @sa pauseSegmentor(), resumeSegmentor()
+			//MutexBool newListGenerated;			//!< Set to true each time the planeSegment() method generates a new list of entities. The consumer function can set it to false after acknowleding the arrival of new list and use it as a signal to wait on.
+			//MutexBool pauseThreadFlag;			//!< Pauses the segmentorRoutine() to pause producing new @link enityList @endlink . Refer @sa pauseSegmentor(), resumeSegmentor()
 
 			// Accessors
 			std::vector<personalRobotics::Entity>* getEntityList();		//!< Fetches a pointer to  @link entityList @endlink. The calling function should also use lockList() and unlockList() appropriately to avoid race conditions.

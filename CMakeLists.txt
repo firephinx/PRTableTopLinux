@@ -6,7 +6,7 @@ if(WIN32 AND NOT MINGW)
   endif()
 endif()
 
-PROJECT(libfreenect2)
+PROJECT(PRTabletop)
 SET(CMAKE_BUILD_TYPE RelWithDebInfo)
 
 SET(MY_DIR ${libfreenect2_SOURCE_DIR})
@@ -48,6 +48,8 @@ SET(LIBRARY_OUTPUT_PATH ${MY_DIR}/lib)
 FIND_PACKAGE(PkgConfig)    # try find PKGConfig as it will be used if found
 FIND_PACKAGE(LibUSB REQUIRED)
 FIND_PACKAGE(TurboJPEG REQUIRED) #does not provide a package-config file
+find_package(PCL 1.2 REQUIRED)
+find_package(OpenCV)
 
 # Add includes
 INCLUDE_DIRECTORIES(
@@ -56,6 +58,10 @@ INCLUDE_DIRECTORIES(
   ${LibUSB_INCLUDE_DIRS}
   ${TurboJPEG_INCLUDE_DIRS}
 )
+
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
 
 LINK_DIRECTORIES(${LibUSB_LIBRARY_DIRS})
 
@@ -199,12 +205,13 @@ IF (ENABLE_OPENGL AND OPENGL_FOUND)
         )
 ENDIF()
   
-ADD_EXECUTABLE(Protonect
+ADD_EXECUTABLE(PRTabletop
+
   ${eyeKin_src}
 
 )
   
-TARGET_LINK_LIBRARIES(Protonect
+TARGET_LINK_LIBRARIES(PRTabletop
   freenect2shared
 )
 

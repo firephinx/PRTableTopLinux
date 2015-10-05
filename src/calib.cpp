@@ -39,7 +39,6 @@ void personalRobotics::Calib::findTable()
 			dstPoint++;
 		}
 	}
-	pointCloudMutex.unlock();
 	pclPtr->resize(dstPoint);
 
 	// Segment out the plane using least squares and RANSAC

@@ -68,8 +68,8 @@ void personalRobotics::ObjectSegmentor::setHomography(cv::Mat inHomography, int 
 	for (int i = 0; i < 3; i++)
 	{
 		std::cout << "(" << keyPoints[i].X << ", " << keyPoints[i].Y << ", " << keyPoints[i].Z << ")" << std::endl;
+		convertPointXYZToPoint2f(keyPoints[i], projectedKeyPoints[i]);
 	}
-	coordinateMapperPtr->MapCameraPointsToColorSpace(3, keyPoints, 3, projectedKeyPoints);
 
 	std::cout << "The projected keyPoints are: " << std::endl;
 	for (int i = 0; i < 3; i++)
@@ -127,32 +127,6 @@ void personalRobotics::ObjectSegmentor::setHomography(cv::Mat inHomography, int 
 	std::cout << "The weights matrix is:" << std::endl;
 	std::cout << weights << std::endl;
 
-	/*keyPointsVectors.at<float>(0, 0) = keyPoints[1].X - keyPoints[0].X;
-	keyPointsVectors.at<float>(1, 0) = keyPoints[1].Y - keyPoints[0].Y;
-	keyPointsVectors.at<float>(2, 0) = keyPoints[1].Z - keyPoints[0].Z;
-	keyPointsVectors.at<float>(0, 1) = keyPoints[2].X - keyPoints[0].X;
-	keyPointsVectors.at<float>(1, 1) = keyPoints[2].Y - keyPoints[0].Y;
-	keyPointsVectors.at<float>(2, 1) = keyPoints[2].Z - keyPoints[0].Z;
-	cv::Mat weightMultVectors(3, 4, CV_32FC1);
-
-	cv::Mat origin(3, 4, CV_32FC1);
-	origin.at<float>(0, 0) = keyPoints[0].X;
-	origin.at<float>(0, 1) = keyPoints[0].X;
-	origin.at<float>(0, 2) = keyPoints[0].X;
-	origin.at<float>(0, 3) = keyPoints[0].X;
-	origin.at<float>(1, 0) = keyPoints[0].Y;
-	origin.at<float>(1, 1) = keyPoints[0].Y;
-	origin.at<float>(1, 2) = keyPoints[0].Y;
-	origin.at<float>(1, 3) = keyPoints[0].Y;
-	origin.at<float>(2, 0) = keyPoints[0].Z;
-	origin.at<float>(2, 1) = keyPoints[0].Z;
-	origin.at<float>(2, 2) = keyPoints[0].Z;
-	origin.at<float>(2, 3) = keyPoints[0].Z;
-	
-	weightMultVectors = keyPointsVectors * weights;
-	cv::Mat projCornersInCam(3, 4, CV_32FC1);
-	cv::add(origin, weightMultVectors, projCornersInCam);*/
-
 	std::vector <cv::Point3f> cornerPoints;
 	for (int i = 0; i < 4; i++)
 	{
@@ -162,12 +136,7 @@ void personalRobotics::ObjectSegmentor::setHomography(cv::Mat inHomography, int 
 		Z = weights.at<float>(0, i)*keyPoints[1].Z + weights.at<float>(1, i)*keyPoints[2].Z + (1.f - weights.at<float>(0, i) - weights.at<float>(1, i))*keyPoints[0].Z;
 		cornerPoints.push_back(cv::Point3f(X, Y, Z));
 	}
-	/*
-	cornerPoints.push_back(cv::Point3f(projCornersInCam.at<float>(0, 0), projCornersInCam.at<float>(1, 0), projCornersInCam.at<float>(2, 0)));
-	cornerPoints.push_back(cv::Point3f(projCornersInCam.at<float>(0, 1), projCornersInCam.at<float>(1, 1), projCornersInCam.at<float>(2, 1)));
-	cornerPoints.push_back(cv::Point3f(projCornersInCam.at<float>(0, 2), projCornersInCam.at<float>(1, 2), projCornersInCam.at<float>(2, 2)));
-	cornerPoints.push_back(cv::Point3f(projCornersInCam.at<float>(0, 3), projCornersInCam.at<float>(1, 3), projCornersInCam.at<float>(2, 3)));
-	*/
+	
 	std::cout << "Projected screen edge point pairs are: " << std::endl;
 	planeNormals.clear();
 	for (int i = 0; i < 4; i++)
@@ -198,26 +167,15 @@ void personalRobotics::ObjectSegmentor::setHomography(cv::Mat inHomography, int 
 }
 
 // Routines
-void personalRobotics::ObjectSegmentor::segment(cv::Mat color, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclPtr)
+void personalRobotics::ObjectSegmentor::segment(cv::Mat rgbImage, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pointCloudPtr)
 {
-	/*// Empty the containers
-	size_t numPoints = depthHeight*depthWidth;
-	lockPcl();
-	pclPtr->clear();
-	pclPtr->resize(numPoints);
-	size_t dstPoint = 0;
-	{
-	  static int count = 50;
-	  if (--count < 0) { std::cout << "Segmentor still running" << std::endl; count = 50; }
-	}
-	// Copy the RGB image
-	pointCloudMutex.lock();
-	rgbMutex.lock();
 	cv::Mat rgbImageCopy;
 	rgbImage.copyTo(rgbImageCopy);
-	rgbMutex.unlock();*/
+	size_t numPoints = pointCloudPtr->size();
+	pclPtr->clear();
+	pclPtr->resize(numPoints);
 
-	size_t numPoints = pclPtr->size();
+	size_t dstPoint = 0;
 
 	// Add plane based rejection
 	// Convert points to pointcloud and plane segment as well
@@ -247,7 +205,6 @@ void personalRobotics::ObjectSegmentor::segment(cv::Mat color, pcl::PointCloud<p
 		}
 	}
 
-	//pointCloudMutex.unlock();
 	pclPtr->resize(dstPoint);
 
 	if (dstPoint > 60000)
@@ -326,7 +283,10 @@ void personalRobotics::ObjectSegmentor::segment(cv::Mat color, pcl::PointCloud<p
 		validClusterCounter++;
 		// Map the points to RGB space and infrared space
 		cv::Mat colorSpacePoints(pointNum, 2, CV_32F);
-		coordinateMapperPtr->MapCameraPointsToColorSpace(pointNum, cameraSpacePoints, pointNum, (ColorSpacePoint*)colorSpacePoints.data);
+		for(int i = 0; i < pointNum; i++)
+		{
+			convertPointXYZToPoint2f(cameraSpacePoints[i], colorSpacePoints.data[i]);
+		}
 
 		// Release the memory
 		delete[] cameraSpacePoints;
