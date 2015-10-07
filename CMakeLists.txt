@@ -15,7 +15,7 @@ PROJECT(PRTabletop)
 
 SET(MY_DIR ${PRTabletop_SOURCE_DIR})
 SET(DEPENDS_DIR "${MY_DIR}/../../depends" CACHE STRING "Dependency directory")
-SET(INCLUDE_DIR ${MY_DIR}/includes)
+SET(INCLUDE_DIR ${MY_DIR}/include)
 
 OPTION(ENABLE_OPENGL "Enable OpenGL support" ON)
 
