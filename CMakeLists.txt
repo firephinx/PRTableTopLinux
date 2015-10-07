@@ -15,6 +15,7 @@ PROJECT(PRTabletop)
 
 SET(MY_DIR ${PRTabletop_SOURCE_DIR})
 SET(DEPENDS_DIR "${MY_DIR}/../../depends" CACHE STRING "Dependency directory")
+SET(INCLUDE_DIR ${MY_DIR}/includes)
 
 OPTION(ENABLE_OPENGL "Enable OpenGL support" ON)
 
@@ -40,6 +41,7 @@ ENDIF()
 INCLUDE_DIRECTORIES(
   ${freenect2_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
+  ${INCLUDE_DIR}
   # ${OpenCV_INCLUDE_DIR}
 )
 
