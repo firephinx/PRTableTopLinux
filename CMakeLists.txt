@@ -55,13 +55,9 @@ SET(EyekinMain
   eyeKinMain.cpp
 )
 
-SET(Protonect_LIBRARIES
-  ${freenect2_LIBRARIES}
+SET(PRTabletop_LIBRARIES
+  ${PRTabletop_LIBRARIES}
 )
-
-# SET(PRTabletop_LIBRARIES
-#   ${PRTabletop_LIBRARIES}
-# )
 
 IF(ENABLE_OPENGL)
   FIND_PACKAGE(GLFW3)
@@ -89,10 +85,6 @@ ADD_EXECUTABLE(PRTabletop
   ${EyekinMain}
 )
 
-# TARGET_LINK_LIBRARIES(PRTabletop
-#   ${PRTabletop_LIBRARIES}
-# )
-
-TARGET_LINK_LIBRARIES(Protonect
-  ${Protonect_LIBRARIES}
+TARGET_LINK_LIBRARIES(PRTabletop
+  ${PRTabletop_LIBRARIES}
 )
