@@ -1,7 +1,7 @@
 #include "calib.h"
 
 // Constructor and Destructor
-personalRobotics::Calib::Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, size_t ColorWidth, size_t ColorHeight, Freenect2Device::ColorCameraParams color)
+personalRobotics::Calib::Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, size_t ColorWidth, size_t ColorHeight, libfreenect2::Freenect2Device::ColorCameraParams color)
 {
 	calibRGB = CalibRGB;
 	calibDepth = CalibDepth;

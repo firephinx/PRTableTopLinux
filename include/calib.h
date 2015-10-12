@@ -8,7 +8,6 @@ namespace personalRobotics
 {
 	class Calib
 	{
-	friend class Conversions;
 	protected:
 		// Flags
 		bool doneCalibrating;
@@ -42,12 +41,12 @@ namespace personalRobotics
 		void createLookup();
 	public:
 		// Constructor and destructor
-		Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, size_t ColorWidth = DEFAULT_COLOR_WIDTH, size_t ColorHeight = DEFAULT_COLOR_HEIGHT, Freenect2Device::ColorCameraParams color);
+		Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, size_t ColorWidth = DEFAULT_COLOR_WIDTH, size_t ColorHeight = DEFAULT_COLOR_HEIGHT, libfreenect2::Freenect2Device::ColorCameraParams color);
 		~Calib();
 
 		// Calibration methods
 		void findTable();
-		void createLookup(Freenect2Device::ColorCameraParams color);
+		void createLookup(libfreenect2::Freenect2Device::ColorCameraParams color);
 		void calibrate(bool placeholder=true, int inWidth = DEFAULT_SCREEN_WIDTH, int inHeight = DEFAULT_SCREEN_HEIGHT);
 
 		// Setters

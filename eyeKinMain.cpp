@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
     cv::Mat(rgbFrame->height, rgbFrame->width, CV_32FC1, rgbFrame->data).copyTo(rgb);
     cv::Mat(depthFrame->height, depthFrame->width, CV_32FC1, depthFrame->data).copyTo(depth);
 
-    //registration->apply(rgbFrame, depthFrame, &undistorted, &registered);
+    registration->apply(rgbFrame, depthFrame, &undistorted, &registered);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr RGBPC(new pcl::PointCloud<pcl::PointXYZRGB>);
     personalRobotics::Calib::createCloud(depth, rgb, *RGBPC);
@@ -262,9 +262,8 @@ int main(int argc, char *argv[])
     }
 
 #ifdef EXAMPLES_WITH_OPENGL_SUPPORT
-    viewer.addFrame("RGB", rgb);
-    viewer.addFrame("ir", ir);
-    viewer.addFrame("depth", depth);
+    viewer.addFrame("RGB", rgbFrame);
+    viewer.addFrame("depth", depthFrame);
     viewer.addFrame("registered", &registered);
 
     protonect_shutdown = protonect_shutdown || viewer.render();
