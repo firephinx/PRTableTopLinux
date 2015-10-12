@@ -74,19 +74,6 @@ namespace personalRobotics
 			bool prevFrameStatic;								//!< Set to true if all the valid entities in the previous frame appeared to be static. false otherwise.
 			int objectCount;									//!< Count of valid objects in the frame.
 
-			// Routines
-			//!	The core routine of the program which segments out objects on the table and generates a list of entities with relavant information.
-			/*!	This is the core routine of the program. The function perfoms the
-				following operations.
-					@li @c Prunes the point cloud based on the @link planeNormals @endlink to reject all the point outside the region of interest.
-					@li @c Perform plane based segmentation and extract all the points that lie above the table plane.
-					@li @c Perform statistical outlier removal to suppress noise followed by voxel grid based down-sampling.
-					@li @c Perform clustering. Each cluster thus formed corresponds to an entity in the scene.
-					@li @c Check the validity of each cluster and rejecting the clusters that are connected to the frustum walls/(@link planeNormals @endlink).
-					@li @c Reproject each cluster onto the RGB image and compute the centroid, principle axes and 2D pose. 
-					@li @c Match each cluster's attributes with the attributes of the clusters in the previous frame and create an association between the clusters across the frames.
-					@li @c Check if the scene has come to rest and generate data for each entity in the list of entities. See @link generateData() @endlink. */
-			void segment(cv::Mat color, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclPtr);
 		public:
 			// Constructor and Destructor
 			//!	Default constructor. Initializes all the parameters to the defaults specified in @link setting.h @endlink .
@@ -105,6 +92,20 @@ namespace personalRobotics
 			//MutexBool newListGenerated;			//!< Set to true each time the planeSegment() method generates a new list of entities. The consumer function can set it to false after acknowleding the arrival of new list and use it as a signal to wait on.
 			//MutexBool pauseThreadFlag;			//!< Pauses the segmentorRoutine() to pause producing new @link enityList @endlink . Refer @sa pauseSegmentor(), resumeSegmentor()
 
+			// Routines
+			//!	The core routine of the program which segments out objects on the table and generates a list of entities with relavant information.
+			/*!	This is the core routine of the program. The function perfoms the
+				following operations.
+					@li @c Prunes the point cloud based on the @link planeNormals @endlink to reject all the point outside the region of interest.
+					@li @c Perform plane based segmentation and extract all the points that lie above the table plane.
+					@li @c Perform statistical outlier removal to suppress noise followed by voxel grid based down-sampling.
+					@li @c Perform clustering. Each cluster thus formed corresponds to an entity in the scene.
+					@li @c Check the validity of each cluster and rejecting the clusters that are connected to the frustum walls/(@link planeNormals @endlink).
+					@li @c Reproject each cluster onto the RGB image and compute the centroid, principle axes and 2D pose. 
+					@li @c Match each cluster's attributes with the attributes of the clusters in the previous frame and create an association between the clusters across the frames.
+					@li @c Check if the scene has come to rest and generate data for each entity in the list of entities. See @link generateData() @endlink. */
+			void segment(cv::Mat color, pcl::PointCloud<pcl::PointXYZRGB>::Ptr pclPtr);
+			
 			// Accessors
 			std::vector<personalRobotics::Entity>* getEntityList();		//!< Fetches a pointer to  @link entityList @endlink. The calling function should also use lockList() and unlockList() appropriately to avoid race conditions.
 			cv::Point2f* getRGBpixelSize();								//!< Fetches a pointer to @link rgbPixelSize @endlink .

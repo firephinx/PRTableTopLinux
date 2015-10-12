@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
   cv::Mat(calibdepthFrame->height, calibdepthFrame->width, CV_32FC1, calibdepthFrame->data).copyTo(calibdepth);
 
   // Initializes a Calibration object
-  personalRobotics::Calib::Calib calib(calibrgb, calibdepth, calibrgb->width, calibrgb->height, dev->getColorCameraParams());
+  personalRobotics::Calib calib(calibrgb, calibdepth, dev->getColorCameraParams(), calibrgb.cols, calibrgb.rows);
   calib.createLookup();
 
   listener.release(frames);
@@ -217,10 +217,10 @@ int main(int argc, char *argv[])
     if(!calib.isCalibrated())
     {
       listener.waitForNewFrame(frames);
-      *calibrgbFrame = frames[libfreenect2::Frame::Color];
-      *calibdepthFrame = frames[libfreenect2::Frame::Depth];
-      cv::Mat(calibrgbFrame->height, calibrgbFrame->width, CV_32FC1, calibrgbFrame->data).copyTo(calibrgb);
-      cv::Mat(calibdepthFrame->height, calibdepthFrame->width, CV_32FC1, calibdepthFrame->data).copyTo(calibdepth)
+      libfreenect2::Frame *newcalibrgbFrame = frames[libfreenect2::Frame::Color];
+      libfreenect2::Frame *newcalibdepthFrame = frames[libfreenect2::Frame::Depth];
+      cv::Mat(newcalibrgbFrame->height, newcalibrgbFrame->width, CV_32FC1, newcalibrgbFrame->data).copyTo(calibrgb);
+      cv::Mat(newcalibdepthFrame->height, newcalibdepthFrame->width, CV_32FC1, newcalibdepthFrame->data).copyTo(calibdepth);
       calib.inputNewFrames(calibrgb, calibdepth);
       listener.release(frames);
     }
@@ -231,7 +231,7 @@ int main(int argc, char *argv[])
   pcl::ModelCoefficients::Ptr planePtr = calib.getPlanePtr();
 
   // Initializes an ObjectSegmentor object
-  personalRobotics::ObjectSegmentor::ObjectSegmentor OS;
+  personalRobotics::ObjectSegmentor OS;
   OS.setPlaneCoefficients(planePtr);
   OS.setHomography(homography);
 
@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
     registration->apply(rgbFrame, depthFrame, &undistorted, &registered);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr RGBPC(new pcl::PointCloud<pcl::PointXYZRGB>);
-    personalRobotics::Calib::createCloud(depth, rgb, *RGBPC);
+    calib.createCloud(depth, rgb, RGBPC);
 
     OS.segment(rgb, RGBPC);
 

@@ -38,13 +38,13 @@ namespace personalRobotics
 
 		/* Protected Functions */
 		void computeHomography(bool placeholder);
-		void createLookup();
 	public:
 		// Constructor and destructor
-		Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, size_t ColorWidth = DEFAULT_COLOR_WIDTH, size_t ColorHeight = DEFAULT_COLOR_HEIGHT, libfreenect2::Freenect2Device::ColorCameraParams color);
+		Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, libfreenect2::Freenect2Device::ColorCameraParams color, size_t ColorWidth = DEFAULT_COLOR_WIDTH, size_t ColorHeight = DEFAULT_COLOR_HEIGHT);
 		~Calib();
 
 		// Calibration methods
+		void createLookup();
 		void findTable();
 		void createLookup(libfreenect2::Freenect2Device::ColorCameraParams color);
 		void calibrate(bool placeholder=true, int inWidth = DEFAULT_SCREEN_WIDTH, int inHeight = DEFAULT_SCREEN_HEIGHT);
@@ -63,7 +63,7 @@ namespace personalRobotics
 		void createCheckerboard(cv::Mat& checkerboard, int width, int height, int& numBlocksX, int& numBlocksY);
 	
 		// Conversion Utility Functions
-		void createCloud(const cv::Mat &depth, const cv::Mat &color, pcl::PointCloud<pcl::PointXYZRGBA>::Ptr &cloud) const;
+		void createCloud(const cv::Mat &depth, const cv::Mat &color, pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud) const;
 	    void convertPointXYZRGBToPoint2f(pcl::PointXYZRGB pointXYZRGB, cv::Point2f *colorPoint);
 	};
 }
