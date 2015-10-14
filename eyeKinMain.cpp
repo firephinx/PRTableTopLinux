@@ -85,7 +85,7 @@ public:
 int main(int argc, char *argv[])
 {
   std::string program_path(argv[0]);
-  size_t executable_name_idx = program_path.rfind("Protonect");
+  size_t executable_name_idx = program_path.rfind("EyeKin");
 
   std::string binpath = "/";
 

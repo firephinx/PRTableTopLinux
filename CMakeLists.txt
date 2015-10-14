@@ -16,6 +16,7 @@ PROJECT(PRTabletop)
 SET(MY_DIR ${PRTabletop_SOURCE_DIR})
 SET(DEPENDS_DIR "${MY_DIR}/../../depends" CACHE STRING "Dependency directory")
 SET(INCLUDE_DIR ${MY_DIR}/include)
+SET(SOURCE_DIR ${MY_DIR}/src)
 
 OPTION(ENABLE_OPENGL "Enable OpenGL support" ON)
 
@@ -39,16 +40,14 @@ ELSE()
 ENDIF()
 
 INCLUDE_DIRECTORIES(
+  ${INCLUDE_DIR}
   ${freenect2_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
-  ${INCLUDE_DIR}
-  # ${OpenCV_INCLUDE_DIR}
 )
 
 LINK_DIRECTORIES(
   ${freenect2_LIBRARY_DIRS}
   ${PCL_LIBRARY_DIRS}
-  # ${OpenCV_LIBRARY_DIRS}
 )
 
 ADD_DEFINITIONS(${PCL_DEFINITIONS})
@@ -58,7 +57,10 @@ SET(EyekinMain
 )
 
 SET(PRTabletop_LIBRARIES
-  ${PRTabletop_LIBRARIES}
+  ${freenect2_LIBRARIES}
+)
+LIST(APPEND PRTabletop_LIBRARIES
+  ${OpenCV_LIBS}
 )
 
 IF(ENABLE_OPENGL)
@@ -71,11 +73,11 @@ IF(ENABLE_OPENGL)
     )
 
     LINK_DIRECTORIES(${GLFW3_LIBRARY_DIRS})
-    LIST(APPEND Protonect_src
+    LIST(APPEND EyekinMain
       viewer.cpp
       ${flextGL_SOURCES}
     )
-    LIST(APPEND Protonect_LIBRARIES
+    LIST(APPEND PRTabletop_LIBRARIES
       ${GLFW3_LIBRARIES}
       ${OPENGL_gl_LIBRARY}
     )
