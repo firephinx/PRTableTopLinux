@@ -37,9 +37,9 @@
 #include "viewer.h"
 #endif
 
-#include "objectSegmentor.h"
-#include "calib.h"
-#include "utilities.h"
+#include "include/objectSegmentor.h"
+#include "include/calib.h"
+#include "include/utilities.h"
 
 bool protonect_shutdown = false;
 
@@ -205,7 +205,7 @@ int main(int argc, char *argv[])
   cv::Mat(calibdepthFrame->height, calibdepthFrame->width, CV_32FC1, calibdepthFrame->data).copyTo(calibdepth);
 
   // Initializes a Calibration object
-  personalRobotics::Calib calib(calibrgb, calibdepth, dev->getColorCameraParams(), calibrgb.cols, calibrgb.rows);
+  personalRobotics::Calib calib(calibrgb, calibdepth, dev->getColorCameraParams());
   calib.createLookup();
 
   listener.release(frames);

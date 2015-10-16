@@ -1,12 +1,25 @@
 #include "calib.h"
 
 // Constructor and Destructor
-personalRobotics::Calib::Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, libfreenect2::Freenect2Device::ColorCameraParams color, size_t ColorWidth, size_t ColorHeight)
+personalRobotics::Calib::Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, libfreenect2::Freenect2Device::ColorCameraParams color)
 {
-	calibRGB.clone(CalibRGB);
-	calibDepth.clone(CalibDepth);
-	colorWidth = ColorWidth;
-	colorHeight = ColorHeight; 
+	CalibRGB.copyTo(calibRGB);
+	CalibDepth.copyTo(calibDepth);
+	colorWidth = DEFAULT_COLOR_WIDTH;
+	colorHeight = DEFAULT_COLOR_HEIGHT; 
+	depthWidth = DEFAULT_DEPTH_WIDTH;
+	depthHeight = DEFAULT_DEPTH_HEIGHT; 
+	minThreshold = DEFAULT_MIN_DEPTH_LIMIT;
+	maxThreshold = DEFAULT_MAX_DEPTH_LIMIT;
+	maxRansacIters = DEFAULT_MAX_RANSAC_ITERATIONS;
+	ransacMargin = DEFAULT_DEPTH_MARGIN;
+	distCutoff = DEFAULT_DISTANCE_CUTOFF;
+	radialThreshold = (DEFAULT_RADIAL_CUTOFF)*(DEFAULT_RADIAL_CUTOFF);
+	clusterTolerance = DEFAULT_CLUSTER_TOLERANCE;
+	minClusterSize = DEFAULT_MINIMUM_CLUSTER_SIZE;
+	maxClusterSize = DEFAULT_MAXIMUM_CLUSTER_SIZE;
+	objectDifferenceThreshold = OBJECT_DIFFERENCE_THRESHOLD;
+	objectMovementThreshold = OBJECT_MOVEMENT_THRESHOLD;
 	fx = color.fx;
   	fy = color.fy;
   	cx = color.cx;
@@ -31,11 +44,11 @@ void personalRobotics::Calib::findTable()
 	size_t dstPoint = 0;
 	for (size_t point = 0; point < numPoints; point++)
 	{
-		if (pointCloudPtr[point].Z > minThreshold && pointCloudPtr[point].Z < maxThreshold)
+		if (calibPC[point].z > minThreshold && calibPC[point].z < maxThreshold)
 		{
-			pclPtr.get()->points[dstPoint].x = pointCloudPtr[point].X;
-			pclPtr.get()->points[dstPoint].y = pointCloudPtr[point].Y;
-			pclPtr.get()->points[dstPoint].z = pointCloudPtr[point].Z;
+			pclPtr.get()->points[dstPoint].x = calibPC[point].x;
+			pclPtr.get()->points[dstPoint].y = calibPC[point].y;
+			pclPtr.get()->points[dstPoint].z = calibPC[point].z;
 			dstPoint++;
 		}
 	}
@@ -71,12 +84,12 @@ void personalRobotics::Calib::findTable()
 	keyPoints[0] = { 0, 0, (-1 * (planePtr->values[3] + planePtr->values[0] * 0 + planePtr->values[1] * 0) / planePtr->values[2]) };		//(0  , 0   ,z1)
 	keyPoints[1] = { 0.1, 0, (-1 * (planePtr->values[3] + planePtr->values[0] * 0.1 + planePtr->values[1] * 0) / planePtr->values[2]) };	//(0.1, 0   ,z2)
 	keyPoints[2] = { 0, 0.1, (-1 * (planePtr->values[3] + planePtr->values[0] * 0 + planePtr->values[1] * 0.1) / planePtr->values[2]) };	//(0  , 0.1 ,z3)
-	for(int i = 0; i < 3)
+	for(int i = 0; i < 3; i++)
 	{
-		convertPointXYZToPoint2f(keyPoints[i], projectedKeyPoints[i]);
+		personalRobotics::Calib::convertPointXYZToPoint2f(keyPoints[i], projectedKeyPoints[i]);
 	}
-	double delX = sqrt((projectedKeyPoints[1].X - projectedKeyPoints[0].X)*(projectedKeyPoints[1].X - projectedKeyPoints[0].X) + (projectedKeyPoints[1].Y - projectedKeyPoints[0].Y)*(projectedKeyPoints[1].Y - projectedKeyPoints[0].Y));
-	double delY = sqrt((projectedKeyPoints[2].X - projectedKeyPoints[0].X)*(projectedKeyPoints[2].X - projectedKeyPoints[0].X) + (projectedKeyPoints[2].Y - projectedKeyPoints[0].Y)*(projectedKeyPoints[2].Y - projectedKeyPoints[0].Y));
+	double delX = sqrt((projectedKeyPoints[1]->x - projectedKeyPoints[0]->x)*(projectedKeyPoints[1]->x - projectedKeyPoints[0]->x) + (projectedKeyPoints[1]->y - projectedKeyPoints[0]->y)*(projectedKeyPoints[1]->y - projectedKeyPoints[0]->y));
+	double delY = sqrt((projectedKeyPoints[2]->x - projectedKeyPoints[0]->x)*(projectedKeyPoints[2]->x - projectedKeyPoints[0]->x) + (projectedKeyPoints[2]->y - projectedKeyPoints[0]->y)*(projectedKeyPoints[2]->y - projectedKeyPoints[0]->y));
 
 	// Value of 0.1 used above is in meters, to get pixel size in mm, divide 100 by delX and delY
 	rgbPixelSize.x = 100 / delX;
@@ -84,15 +97,15 @@ void personalRobotics::Calib::findTable()
 
 	std::cout << "findTablePlane() computed rgbPixelSize: (" << rgbPixelSize.x << ", " << rgbPixelSize.y <<")"<< std::endl;
 	// Return
-	return true;
+	return;
 }
 
 /* computeHomography takes in an RGB image that contains a checkerboard pattern in the image and returns a homography */
-cv::Mat personalRobotics::Calib::computeHomography(bool usePlaceHolder, cv::Mat colorImg)
+void personalRobotics::Calib::computeHomography(bool usePlaceHolder)
 {
 	if(!usePlaceHolder)
 	{
-		cv::Mat tempColorImg = colorImg.clone();
+		cv::Mat tempColorImg = calibRGB.clone();
 		std::vector<cv::Point2f> detectedCorners, checkerboardCorners;
 		bool foundCorners = findChessboardCorners(tempColorImg, cv::Size(numCheckerPtsX, numCheckerPtsY), detectedCorners, CV_CALIB_CB_ADAPTIVE_THRESH);
 		std::cout << "Size of checkerboard being used in findHomography is: (" << checkerboard.cols << ", " << checkerboard.rows << ")" << std::endl;
@@ -101,7 +114,7 @@ cv::Mat personalRobotics::Calib::computeHomography(bool usePlaceHolder, cv::Mat 
 		if (foundCorners && foundProjectedCorners)
 		{
 			homography = cv::findHomography(detectedCorners, checkerboardCorners, CV_RANSAC);
-			homographyFound.set(true);
+			homographyFound = true;
 		}
 		else
 		{
@@ -112,7 +125,7 @@ cv::Mat personalRobotics::Calib::computeHomography(bool usePlaceHolder, cv::Mat 
 	{
 		std::cout << "Performing a placeholder calibration" << std::endl;
 		homography = (cv::Mat_<double>(3, 3) << 1.7456, 0.0337, -837.4711, 0.0143, 1.7469, -331.6242, 0.0, 0.0, 1) * (cv::Mat_<double>(3, 3) << 1, 0, 0, 0, 1, 0, 0, 0, 1);
-		homographyFound.set(true);
+		homographyFound = true;
 	}
 }
 
@@ -159,12 +172,12 @@ void personalRobotics::Calib::calibrate(bool usePlaceholder, int inWidth, int in
 		if (!homographyFound)
 		{
 		  	std::cout << "calling findHomography()" << std::endl;
-			findHomography(usePlaceholder);
+			computeHomography(usePlaceholder);
 			attempts++;
 			if (attempts > maxAttempts)
 			{
 				std::cout << "Calibration failed " << attempts-1 << " times. Performing a placeholder cailbration.\n";
-				findHomography(true);
+				computeHomography(true);
 			}
 		}
 
@@ -179,18 +192,18 @@ void personalRobotics::Calib::calibrate(bool usePlaceholder, int inWidth, int in
 			rgbKeyPoints.push_back(cv::Point2f(10, 0));
 			rgbKeyPoints.push_back(cv::Point2f(0, 10));
 			cv::perspectiveTransform(rgbKeyPoints, projKeyPoints, homography);
-			float delX = 10.f / cv::norm(projKeyPoints[1] - projKeyPoints[0]);
+			/*float delX = 10.f / cv::norm(projKeyPoints[1] - projKeyPoints[0]);
 			float delY = 10.f / cv::norm(projKeyPoints[2] - projKeyPoints[0]);
 			colorPixelSize = *(segmentor.getRGBpixelSize());
 			projPixelSize.x = colorPixelSize.x * delX;
 			projPixelSize.y = colorPixelSize.y * delY;
-			std::cout << "Calibration complete. Projector pixel size is: (" << projPixelSize.x << "," << projPixelSize.y << ")\n";
+			std::cout << "Calibration complete. Projector pixel size is: (" << projPixelSize.x << "," << projPixelSize.y << ")\n";*/
 		}
 	}
 }
 
 //Setters
-void inputNewFrames(cv::Mat CalibRGB, cv::Mat CalibDepth)
+void personalRobotics::Calib::inputNewFrames(cv::Mat CalibRGB, cv::Mat CalibDepth)
 {
 	calibRGB = CalibRGB;
 	calibDepth = CalibDepth;

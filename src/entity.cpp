@@ -57,7 +57,7 @@ void personalRobotics::Entity::generateData(cv::Mat& homography, cv::Mat& rgbIma
 			maskChannel.data[i] = 255;
 	}
 	maskCopy = maskChannel.clone();
-	std::vector<std::vector<cv::Point>> vectorOfContours;
+	std::vector<std::vector<cv::Point> > vectorOfContours;
 	cv::vector<cv::Vec4i> hierarchy;
 	cv::findContours(maskCopy, vectorOfContours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE);
 	int largestContourIdx = -1;

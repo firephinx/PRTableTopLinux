@@ -16,7 +16,6 @@ PROJECT(PRTabletop)
 SET(MY_DIR ${PRTabletop_SOURCE_DIR})
 SET(DEPENDS_DIR "${MY_DIR}/../../depends" CACHE STRING "Dependency directory")
 SET(INCLUDE_DIR ${MY_DIR}/include)
-SET(SOURCE_DIR ${MY_DIR}/src)
 
 OPTION(ENABLE_OPENGL "Enable OpenGL support" ON)
 
@@ -43,6 +42,34 @@ INCLUDE_DIRECTORIES(
   ${INCLUDE_DIR}
   ${freenect2_INCLUDE_DIR}
   ${PCL_INCLUDE_DIRS}
+)
+
+SET(SOURCES
+  include/calib.h
+  #include/entity.h
+  #include/entity.pb.h
+  include/objectSegmentor.h
+
+  include/opencv.h
+  include/pcl.h
+
+  #include/point2D.pb.h
+  #include/pose2D.pb.h
+
+  include/settings.h
+  include/tcp.h
+  include/timer.h
+  include/utilities.h
+
+  src/calib.cpp
+  #src/entity.cpp
+  #src/entity.pb.cc
+  src/objectSegmentor.cpp
+  #src/point2D.pb.cc
+  #src/pose2D.pb.cc
+  src/tcp.cpp
+  src/timer.cpp
+  src/utilities.cpp
 )
 
 LINK_DIRECTORIES(
@@ -75,6 +102,7 @@ IF(ENABLE_OPENGL)
     LINK_DIRECTORIES(${GLFW3_LIBRARY_DIRS})
     LIST(APPEND EyekinMain
       viewer.cpp
+      ${SOURCES}
       ${flextGL_SOURCES}
     )
     LIST(APPEND PRTabletop_LIBRARIES
