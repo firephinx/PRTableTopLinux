@@ -1,8 +1,10 @@
 #ifndef __OBJECT_SEGMENTOR_H__
 #define __OBJECT_SEGMENTOR_H__
 
+#include <libfreenect2/libfreenect2.hpp>
 #include "settings.h"
 /* Not necessary. Marked by Kevin. #include "kinectReader.h"*/
+#include "calib.h"
 #include "entity.h"
 #include "pcl.h"
 #include "timer.h"
@@ -40,6 +42,7 @@ namespace personalRobotics
 			pcl::ModelCoefficients::Ptr planePtr;				//!< Equation of the plane as estimated by findTablePlane() using least squares fit with RANSAC for robust estimation.
 			std::vector<personalRobotics::Entity> entityList;	//!< A list of entities detected in the current scene.
 			cv::Mat homography;									//!< The homography set by the function setHomography().
+			personalRobotics::Calib* calib;
 			
 			//!	Set of 4 plane normals, expressed in the same coordinate system as the point cloud, that connect the origin of the camera space to the 4 edges of the projected screen.
 			/*!	Set of 4 plane normals, expressed in the same coordinate system as the point cloud,
@@ -55,6 +58,9 @@ namespace personalRobotics
 			// ID lists
 			std::vector<IDLookUp> previousIDList;				//!< A list containing characteristic information of the entities in the last frame for the purpose of entity association across frames.
 			std::vector<IDLookUp> currentIDList;				//!< A list containing characteristic information of the entities in the current frame for the purpose of entity association across frames.
+
+			// Flags
+			bool homographySetFlag;
 
 			/* Not necessary. Marked by Kevin. 
 
@@ -79,7 +85,7 @@ namespace personalRobotics
 			//!	Default constructor. Initializes all the parameters to the defaults specified in @link setting.h @endlink .
 			/*!	Constructs the object with the default values as specified in @link setting.h @endlink .
 				Also starts the kinect reader thread by calling startKinect()*/
-			ObjectSegmentor();
+			ObjectSegmentor(cv::Mat CalibRGB, cv::Mat CalibDepth, libfreenect2::Freenect2Device::ColorCameraParams color);
 
 			// Default destructor. Stops the object segmentor and the kinect reader threads if not stopped already.
 			~ObjectSegmentor();
@@ -111,14 +117,15 @@ namespace personalRobotics
 			cv::Point2f* getRGBpixelSize();								//!< Fetches a pointer to @link rgbPixelSize @endlink .
 			std::vector<IDLookUp>* getIDList();							//!< Fetches a pointer to @link previousIDList @endlink .
 			bool getStatic();											//!< Returns true if the scene is static, false otherwise.
+			personalRobotics::Calib* getCalibPtr();
 
 			// Setters
 			//!	Sets the homography between the color camera of the kinect and the projected screen followed by, computing the @link planeNormals @endlink .
 			/*! Sets the homography between the color camera of the kinect and the projected screen followed by,
 				computing the @link planeNormals @endlink . This routine needs the @link planePtr @endlink be
 				set by findTablePlane() function.*/
-			void setHomography(cv::Mat inhomography, int inWidth = DEFAULT_SCREEN_WIDTH, int inHeight = DEFAULT_SCREEN_HEIGHT);
-			void setPlaneCoefficients(pcl::ModelCoefficients::Ptr PlanePtr);
+			void setHomography(int inWidth = DEFAULT_SCREEN_WIDTH, int inHeight = DEFAULT_SCREEN_HEIGHT);
+			void setPlaneCoefficients();
 
 			// Routines
 			//!	Estimates the table plane equation using least squares fit with RANSAC.

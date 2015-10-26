@@ -1,7 +1,7 @@
 #include "objectSegmentor.h"
 
 // Constructor and Destructor
-personalRobotics::ObjectSegmentor::ObjectSegmentor()
+personalRobotics::ObjectSegmentor::ObjectSegmentor(cv::Mat CalibRGB, cv::Mat CalibDepth, libfreenect2::Freenect2Device::ColorCameraParams color)
 {
 	// Set all config params
 	maxRansacIters = DEFAULT_MAX_RANSAC_ITERATIONS;
@@ -20,9 +20,11 @@ personalRobotics::ObjectSegmentor::ObjectSegmentor()
 	pclPtr = pcl::PointCloud<pcl::PointXYZ>::Ptr(new pcl::PointCloud<pcl::PointXYZ>);
 	planePtr = pcl::ModelCoefficients::Ptr(new pcl::ModelCoefficients);
 
+	homographySetFlag = false;
 	frameStatic = false;
 	prevFrameStatic = false;
 	objectCount = 0;
+	calib = new personalRobotics::Calib(CalibRGB, CalibDepth, color);
 }
 
 personalRobotics::ObjectSegmentor::~ObjectSegmentor()
@@ -48,47 +50,52 @@ bool personalRobotics::ObjectSegmentor::getStatic()
 	return frameStatic;
 }
 
-// Setters
-void personalRobotics::ObjectSegmentor::setPlaneCoefficients(pcl::ModelCoefficients::Ptr PlanePtr)
+personalRobotics::Calib* personalRobotics::ObjectSegmentor::getCalibPtr()
 {
-	planePtr = PlanePtr;
+	return calib;
 }
 
-void personalRobotics::ObjectSegmentor::setHomography(cv::Mat inHomography, int width, int height)
+// Setters
+void personalRobotics::ObjectSegmentor::setPlaneCoefficients()
 {
-	homography = inHomography.clone();
-	homographySetFlag.set(true);
+	planePtr = calib->getPlanePtr();
+}
+
+void personalRobotics::ObjectSegmentor::setHomography(int width, int height)
+{
+	homography = calib->getHomography();
+	homographySetFlag = true;
 
 	pcl::PointXYZ keyPoints[3];
-	cv::Point projectedKeyPoints[3];
+	cv::Point2f projectedKeyPoints[3];
 	keyPoints[0] = { 0, 0, (-1 * (planePtr->values[3] + planePtr->values[0] * 0 + planePtr->values[1] * 0) / planePtr->values[2]) };	//(0  , 0   ,z1)
 	keyPoints[1] = { 0.1, 0, (-1 * (planePtr->values[3] + planePtr->values[0] * 0.1 + planePtr->values[1] * 0) / planePtr->values[2]) };	//(0.1, 0   ,z2)
 	keyPoints[2] = { 0, 0.1, (-1 * (planePtr->values[3] + planePtr->values[0] * 0 + planePtr->values[1] * 0.1) / planePtr->values[2]) };	//(0  , 0.1 ,z3)
 	std::cout << "The keyPoints are: " << std::endl;
 	for (int i = 0; i < 3; i++)
 	{
-		std::cout << "(" << keyPoints[i].X << ", " << keyPoints[i].Y << ", " << keyPoints[i].Z << ")" << std::endl;
-		convertPointXYZToPoint2f(keyPoints[i], projectedKeyPoints[i]);
+		std::cout << "(" << keyPoints[i].x << ", " << keyPoints[i].y << ", " << keyPoints[i].z << ")" << std::endl;
+		calib->convertPointXYZToPoint2f(keyPoints[i], &projectedKeyPoints[i]);
 	}
 
 	std::cout << "The projected keyPoints are: " << std::endl;
 	for (int i = 0; i < 3; i++)
 	{
-		std::cout << "(" << projectedKeyPoints[i].X << ", " << projectedKeyPoints[i].Y << ")" << std::endl;
+		std::cout << "(" << projectedKeyPoints[i].x << ", " << projectedKeyPoints[i].y << ")" << std::endl;
 	}
 
 	cv::Mat rgbToKeyPoints(2, 2, CV_32FC1);
-	rgbToKeyPoints.at<float>(0, 0) = projectedKeyPoints[1].X - projectedKeyPoints[0].X;
-	rgbToKeyPoints.at<float>(1, 0) = projectedKeyPoints[1].Y - projectedKeyPoints[0].Y;
-	rgbToKeyPoints.at<float>(0, 1) = projectedKeyPoints[2].X - projectedKeyPoints[0].X;
-	rgbToKeyPoints.at<float>(1, 1) = projectedKeyPoints[2].Y - projectedKeyPoints[0].Y;
+	rgbToKeyPoints.at<float>(0, 0) = projectedKeyPoints[1].x - projectedKeyPoints[0].x;
+	rgbToKeyPoints.at<float>(1, 0) = projectedKeyPoints[1].y - projectedKeyPoints[0].y;
+	rgbToKeyPoints.at<float>(0, 1) = projectedKeyPoints[2].x - projectedKeyPoints[0].x;
+	rgbToKeyPoints.at<float>(1, 1) = projectedKeyPoints[2].y - projectedKeyPoints[0].y;
 
 	std::cout << "RGB frame to keypoints conversion matrix is:" << std::endl;
 	std::cout << rgbToKeyPoints << std::endl;
 
 	std::vector<cv::Point2f> projCornersInProj, projCornersInRGB;
 
-	std::cout << "setting homography with width: " << width << " height: " << height << " H = " << inHomography << std::endl;
+	std::cout << "setting homography with width: " << width << " height: " << height << " H = " << homography << std::endl;
 	projCornersInProj.push_back(cv::Point2f(0, 0));
 	projCornersInProj.push_back(cv::Point2f(width, 0));
 	projCornersInProj.push_back(cv::Point2f(width, height));
@@ -108,14 +115,14 @@ void personalRobotics::ObjectSegmentor::setHomography(cv::Mat inHomography, int 
 	}
 	
 	cv::Mat projCornersInRGBMat(2, 4, CV_32FC1);
-	projCornersInRGBMat.at<float>(0, 0) = projCornersInRGB[0].x - projectedKeyPoints[0].X;
-	projCornersInRGBMat.at<float>(1, 0) = projCornersInRGB[0].y - projectedKeyPoints[0].Y;
-	projCornersInRGBMat.at<float>(0, 1) = projCornersInRGB[1].x - projectedKeyPoints[0].X;
-	projCornersInRGBMat.at<float>(1, 1) = projCornersInRGB[1].y - projectedKeyPoints[0].Y;
-	projCornersInRGBMat.at<float>(0, 2) = projCornersInRGB[2].x - projectedKeyPoints[0].X;
-	projCornersInRGBMat.at<float>(1, 2) = projCornersInRGB[2].y - projectedKeyPoints[0].Y;
-	projCornersInRGBMat.at<float>(0, 3) = projCornersInRGB[3].x - projectedKeyPoints[0].X;
-	projCornersInRGBMat.at<float>(1, 3) = projCornersInRGB[3].y - projectedKeyPoints[0].Y;
+	projCornersInRGBMat.at<float>(0, 0) = projCornersInRGB[0].x - projectedKeyPoints[0].x;
+	projCornersInRGBMat.at<float>(1, 0) = projCornersInRGB[0].y - projectedKeyPoints[0].y;
+	projCornersInRGBMat.at<float>(0, 1) = projCornersInRGB[1].x - projectedKeyPoints[0].x;
+	projCornersInRGBMat.at<float>(1, 1) = projCornersInRGB[1].y - projectedKeyPoints[0].y;
+	projCornersInRGBMat.at<float>(0, 2) = projCornersInRGB[2].x - projectedKeyPoints[0].x;
+	projCornersInRGBMat.at<float>(1, 2) = projCornersInRGB[2].y - projectedKeyPoints[0].y;
+	projCornersInRGBMat.at<float>(0, 3) = projCornersInRGB[3].x - projectedKeyPoints[0].x;
+	projCornersInRGBMat.at<float>(1, 3) = projCornersInRGB[3].y - projectedKeyPoints[0].y;
 
 	std::cout << "Projector's corners represented as vectors from center of projected origin is:" << std::endl;
 	std::cout << projCornersInRGBMat << std::endl;
@@ -131,9 +138,9 @@ void personalRobotics::ObjectSegmentor::setHomography(cv::Mat inHomography, int 
 	for (int i = 0; i < 4; i++)
 	{
 		float X, Y, Z;
-		X = weights.at<float>(0, i)*keyPoints[1].X + weights.at<float>(1, i)*keyPoints[2].X + (1.f - weights.at<float>(0, i) - weights.at<float>(1, i))*keyPoints[0].X;
-		Y = weights.at<float>(0, i)*keyPoints[1].Y + weights.at<float>(1, i)*keyPoints[2].Y + (1.f - weights.at<float>(0, i) - weights.at<float>(1, i))*keyPoints[0].Y;
-		Z = weights.at<float>(0, i)*keyPoints[1].Z + weights.at<float>(1, i)*keyPoints[2].Z + (1.f - weights.at<float>(0, i) - weights.at<float>(1, i))*keyPoints[0].Z;
+		X = weights.at<float>(0, i)*keyPoints[1].x + weights.at<float>(1, i)*keyPoints[2].x + (1.f - weights.at<float>(0, i) - weights.at<float>(1, i))*keyPoints[0].x;
+		Y = weights.at<float>(0, i)*keyPoints[1].y + weights.at<float>(1, i)*keyPoints[2].y + (1.f - weights.at<float>(0, i) - weights.at<float>(1, i))*keyPoints[0].y;
+		Z = weights.at<float>(0, i)*keyPoints[1].z + weights.at<float>(1, i)*keyPoints[2].z + (1.f - weights.at<float>(0, i) - weights.at<float>(1, i))*keyPoints[0].z;
 		cornerPoints.push_back(cv::Point3f(X, Y, Z));
 	}
 	
@@ -149,12 +156,12 @@ void personalRobotics::ObjectSegmentor::setHomography(cv::Mat inHomography, int 
 		planeNormals.push_back(cv::Point3f(X, Y, Z));
 	}
 
-	cv::Point3f testPoint(keyPoints[0].X, keyPoints[0].Y, keyPoints[0].Z);
+	cv::Point3f testPoint(keyPoints[0].x, keyPoints[0].y, keyPoints[0].z);
 
 	std::cout << "The sign corrected frustrum normals are:" << std::endl;
 	for (int i = 0; i < 4; i++)
 	{
-		float a = planeNormals[i].x*keyPoints[0].X + planeNormals[i].y*keyPoints[0].Y + planeNormals[i].z*keyPoints[0].Z;
+		float a = planeNormals[i].x*keyPoints[0].x + planeNormals[i].y*keyPoints[0].y + planeNormals[i].z*keyPoints[0].z;
 		float signOfA = a / abs(a);
 		planeNormals[i].x = planeNormals[i].x*signOfA;
 		planeNormals[i].y = planeNormals[i].y*signOfA;
@@ -181,21 +188,21 @@ void personalRobotics::ObjectSegmentor::segment(cv::Mat rgbImage, pcl::PointClou
 	// Convert points to pointcloud and plane segment as well
 	for (size_t point = 0; point < numPoints; point++)
 	{
-		if (pointCloudPtr[point].Z > minThreshold && pointCloudPtr[point].Z < maxThreshold)
+		if (pointCloudPtr->points[point].z > minThreshold && pointCloudPtr->points[point].z < maxThreshold)
 		{
-			if ((planePtr->values[0] * pointCloudPtr[point].X + planePtr->values[1] * pointCloudPtr[point].Y + planePtr->values[2] * pointCloudPtr[point].Z + planePtr->values[3]) > distCutoff)
+			if ((planePtr->values[0] * pointCloudPtr->points[point].x + planePtr->values[1] * pointCloudPtr->points[point].y + planePtr->values[2] * pointCloudPtr->points[point].z + planePtr->values[3]) > distCutoff)
 			{
-				if ((planeNormals[0].x * pointCloudPtr[point].X + planeNormals[0].y * pointCloudPtr[point].Y + planeNormals[0].z * pointCloudPtr[point].Z) > 0)
+				if ((planeNormals[0].x * pointCloudPtr->points[point].x + planeNormals[0].y * pointCloudPtr->points[point].y + planeNormals[0].z * pointCloudPtr->points[point].z) > 0)
 				{
-					if ((planeNormals[1].x * pointCloudPtr[point].X + planeNormals[1].y * pointCloudPtr[point].Y + planeNormals[1].z * pointCloudPtr[point].Z) > 0)
+					if ((planeNormals[1].x * pointCloudPtr->points[point].x + planeNormals[1].y * pointCloudPtr->points[point].y + planeNormals[1].z * pointCloudPtr->points[point].z) > 0)
 					{
-						if ((planeNormals[2].x * pointCloudPtr[point].X + planeNormals[2].y * pointCloudPtr[point].Y + planeNormals[2].z * pointCloudPtr[point].Z) > 0)
+						if ((planeNormals[2].x * pointCloudPtr->points[point].x + planeNormals[2].y * pointCloudPtr->points[point].y + planeNormals[2].z * pointCloudPtr->points[point].z) > 0)
 						{
-							if ((planeNormals[3].x * pointCloudPtr[point].X + planeNormals[3].y * pointCloudPtr[point].Y + planeNormals[3].z * pointCloudPtr[point].Z) > 0)
+							if ((planeNormals[3].x * pointCloudPtr->points[point].x + planeNormals[3].y * pointCloudPtr->points[point].y + planeNormals[3].z * pointCloudPtr->points[point].z) > 0)
 							{
-								pclPtr->points[dstPoint].x = pointCloudPtr[point].X;
-								pclPtr->points[dstPoint].y = pointCloudPtr[point].Y;
-								pclPtr->points[dstPoint].z = pointCloudPtr[point].Z;
+								pclPtr->points[dstPoint].x = pointCloudPtr->points[point].x;
+								pclPtr->points[dstPoint].y = pointCloudPtr->points[point].y;
+								pclPtr->points[dstPoint].z = pointCloudPtr->points[point].z;
 								dstPoint++;
 							}
 						}
@@ -282,10 +289,14 @@ void personalRobotics::ObjectSegmentor::segment(cv::Mat rgbImage, pcl::PointClou
 
 		validClusterCounter++;
 		// Map the points to RGB space and infrared space
+		//cv::Point2f *colorSpacePoints[pointNum];
 		cv::Mat colorSpacePoints(pointNum, 2, CV_32F);
 		for(int i = 0; i < pointNum; i++)
 		{
-			convertPointXYZToPoint2f(cameraSpacePoints[i], colorSpacePoints.data[i]);
+			cv::Point2f temp;
+			calib->convertPointXYZToPoint2f(cameraSpacePoints[i], &temp); //colorSpacePoints[i]); 
+			colorSpacePoints.at<float>(i,0) = temp.x;
+			colorSpacePoints.at<float>(i,1) = temp.y;
 		}
 
 		// Release the memory
@@ -362,10 +373,10 @@ void personalRobotics::ObjectSegmentor::segment(cv::Mat rgbImage, pcl::PointClou
 		{
 			entityPtr->generateData(homography, rgbImageCopy);
 		}
-		newListGenerated.set(true);
+		//newListGenerated.set(true);
 		std::cout << "New static frame generated." << std::endl;
 	}
-	unlockList();
+	//unlockList();
 	currentIDList.clear();
 }
 

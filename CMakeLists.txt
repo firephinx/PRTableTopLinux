@@ -57,7 +57,7 @@ SET(SOURCES
   #include/pose2D.pb.h
 
   include/settings.h
-  include/tcp.h
+  #include/tcp.h
   include/timer.h
   include/utilities.h
 
@@ -67,7 +67,7 @@ SET(SOURCES
   src/objectSegmentor.cpp
   #src/point2D.pb.cc
   #src/pose2D.pb.cc
-  src/tcp.cpp
+  #src/tcp.cpp
   src/timer.cpp
   src/utilities.cpp
 )

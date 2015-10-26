@@ -204,36 +204,32 @@ int main(int argc, char *argv[])
   cv::Mat(calibrgbFrame->height, calibrgbFrame->width, CV_32FC1, calibrgbFrame->data).copyTo(calibrgb);
   cv::Mat(calibdepthFrame->height, calibdepthFrame->width, CV_32FC1, calibdepthFrame->data).copyTo(calibdepth);
 
-  // Initializes a Calibration object
-  personalRobotics::Calib calib(calibrgb, calibdepth, dev->getColorCameraParams());
-  calib.createLookup();
+  // Initializes an ObjectSegmentor object which contains a Calibration object
+  personalRobotics::ObjectSegmentor OS(calibrgb, calibdepth, dev->getColorCameraParams());
+  personalRobotics::Calib *calib = OS.getCalibPtr();
+  calib->createLookup();
 
   listener.release(frames);
 
   // Checks to make sure everything is calibrated before moving on to the object segmentation code.
-  while(!calib.isCalibrated())
+  while(!calib->isCalibrated())
   {
-    calib.calibrate();
-    if(!calib.isCalibrated())
+    calib->calibrate();
+    if(!calib->isCalibrated())
     {
       listener.waitForNewFrame(frames);
       libfreenect2::Frame *newcalibrgbFrame = frames[libfreenect2::Frame::Color];
       libfreenect2::Frame *newcalibdepthFrame = frames[libfreenect2::Frame::Depth];
       cv::Mat(newcalibrgbFrame->height, newcalibrgbFrame->width, CV_32FC1, newcalibrgbFrame->data).copyTo(calibrgb);
       cv::Mat(newcalibdepthFrame->height, newcalibdepthFrame->width, CV_32FC1, newcalibdepthFrame->data).copyTo(calibdepth);
-      calib.inputNewFrames(calibrgb, calibdepth);
+      calib->inputNewFrames(calibrgb, calibdepth);
       listener.release(frames);
     }
   }
 
-  // Accesses the homography and planePtr from the calibration object
-  cv::Mat homography = calib.getHomography();
-  pcl::ModelCoefficients::Ptr planePtr = calib.getPlanePtr();
-
-  // Initializes an ObjectSegmentor object
-  personalRobotics::ObjectSegmentor OS;
-  OS.setPlaneCoefficients(planePtr);
-  OS.setHomography(homography);
+  // Passes the homography and planePtr from the calibration object to the 
+  OS.setPlaneCoefficients();
+  OS.setHomography();
 
   //Main Segmentation Loop waiting for new frames
   while(!protonect_shutdown)
@@ -248,7 +244,7 @@ int main(int argc, char *argv[])
     registration->apply(rgbFrame, depthFrame, &undistorted, &registered);
 
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr RGBPC(new pcl::PointCloud<pcl::PointXYZRGB>);
-    calib.createCloud(depth, rgb, RGBPC);
+    calib->createCloud(depth, rgb, RGBPC);
 
     OS.segment(rgb, RGBPC);
 
