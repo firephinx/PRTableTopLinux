@@ -46,7 +46,7 @@ INCLUDE_DIRECTORIES(
 
 SET(SOURCES
   include/calib.h
-  #include/entity.h
+  include/entity.h
   #include/entity.pb.h
   include/objectSegmentor.h
 
@@ -62,7 +62,7 @@ SET(SOURCES
   include/utilities.h
 
   src/calib.cpp
-  #src/entity.cpp
+  src/entity.cpp
   #src/entity.pb.cc
   src/objectSegmentor.cpp
   #src/point2D.pb.cc
