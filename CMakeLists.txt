@@ -25,7 +25,7 @@ SET(flextGL_SOURCES ${freenect2_ROOT_DIR}/src/flextGL.cpp)
 SET(flextGL_INCLUDE_DIRS ${freenect2_ROOT_DIR}/src) # for flextGL.h
 
 FIND_PACKAGE(PkgConfig)    # try find PKGConfig as it will be used if found
-FIND_PACKAGE(PCL 1.7 REQUIRED common)
+FIND_PACKAGE(PCL 1.7 REQUIRED common segmentation filters)
 FIND_PACKAGE(OpenCV REQUIRED)
 FIND_PACKAGE(freenect2 REQUIRED)
 
@@ -118,6 +118,6 @@ ADD_EXECUTABLE(PRTabletop
 )
 
 TARGET_LINK_LIBRARIES(PRTabletop
-  ${PCL_COMMON_LIBRARIES}
+  ${PCL_LIBRARIES}
   ${PRTabletop_LIBRARIES}
 )
