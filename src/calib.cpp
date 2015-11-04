@@ -1,7 +1,7 @@
 #include "calib.h"
 
 // Constructor and Destructor
-personalRobotics::Calib::Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, libfreenect2::Freenect2Device::ColorCameraParams color)
+personalRobotics::Calib::Calib(const cv::Mat CalibRGB, const cv::Mat CalibDepth, libfreenect2::Freenect2Device::ColorCameraParams color)
 {
 	CalibRGB.copyTo(calibRGB);
 	CalibDepth.copyTo(calibDepth);
@@ -29,7 +29,7 @@ personalRobotics::Calib::Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, libfreenect
 	homographyFound = false;
 	pclPtr = (pcl::PointCloud<pcl::PointXYZ>::Ptr) new pcl::PointCloud<pcl::PointXYZ>;
 	createLookup();
-	createCloud(CalibDepth, CalibRGB, &calibPC);
+	this->createCloud(CalibDepth, CalibRGB, calibPC);
 }
 
 personalRobotics::Calib::~Calib()
@@ -40,7 +40,7 @@ personalRobotics::Calib::~Calib()
 // Calibration methods
 void personalRobotics::Calib::findTable()
 {
-	size_t numCalibPoints = calibPC.points.size();
+	size_t numCalibPoints = calibPC->points.size();
 	size_t numPoints = depthHeight*depthWidth;
 	pclPtr->clear();
 	pclPtr->width = depthWidth;
@@ -49,11 +49,11 @@ void personalRobotics::Calib::findTable()
 	size_t dstPoint = 0;
 	for (size_t point = 0; point < numCalibPoints; point++)
 	{
-		if (calibPC[point].z > minThreshold && calibPC[point].z < maxThreshold)
+		if (calibPC->points[point].z > minThreshold && calibPC->points[point].z < maxThreshold)
 		{
-			pclPtr->points[dstPoint].x = calibPC[point].x;
-			pclPtr->points[dstPoint].y = calibPC[point].y;
-			pclPtr->points[dstPoint].z = calibPC[point].z;
+			pclPtr->points[dstPoint].x = calibPC->points[point].x;
+			pclPtr->points[dstPoint].y = calibPC->points[point].y;
+			pclPtr->points[dstPoint].z = calibPC->points[point].z;
 			dstPoint++;
 		}
 	}
@@ -210,10 +210,11 @@ void personalRobotics::Calib::calibrate(bool usePlaceholder, int inWidth, int in
 }
 
 //Setters
-void personalRobotics::Calib::inputNewFrames(cv::Mat CalibRGB, cv::Mat CalibDepth)
+void personalRobotics::Calib::inputNewFrames(const cv::Mat CalibRGB, const cv::Mat CalibDepth)
 {
 	calibRGB = CalibRGB;
 	calibDepth = CalibDepth;
+	this->createCloud(CalibDepth, CalibRGB, calibPC);
 }
 
 //Accessors

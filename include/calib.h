@@ -40,7 +40,7 @@ namespace personalRobotics
 		cv::Point2f rgbPixelSize;
 		pcl::ModelCoefficients::Ptr planePtr;
 		cv::Mat calibRGB, calibDepth;
-		pcl::PointCloud<pcl::PointXYZRGB> calibPC;
+		pcl::PointCloud<pcl::PointXYZRGB>::Ptr calibPC;
 		pcl::PointCloud<pcl::PointXYZ>::Ptr pclPtr;
 		cv::Mat lookupX, lookupY;
 		float fx;
@@ -60,7 +60,7 @@ namespace personalRobotics
 		void computeHomography(bool placeholder);
 	public:
 		// Constructor and destructor
-		Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, libfreenect2::Freenect2Device::ColorCameraParams color);
+		Calib(const cv::Mat CalibRGB, const cv::Mat CalibDepth, libfreenect2::Freenect2Device::ColorCameraParams color);
 		~Calib();
 
 		// Calibration methods
@@ -70,7 +70,7 @@ namespace personalRobotics
 		void calibrate(bool placeholder=true, int inWidth = DEFAULT_SCREEN_WIDTH, int inHeight = DEFAULT_SCREEN_HEIGHT);
 
 		// Setters
-		void inputNewFrames(cv::Mat CalibRGB, cv::Mat CalibDepth);
+		void inputNewFrames(const cv::Mat CalibRGB, const cv::Mat CalibDepth);
 
 		// Accessors
 		cv::Mat getHomography();
