@@ -27,7 +27,9 @@ personalRobotics::Calib::Calib(cv::Mat CalibRGB, cv::Mat CalibDepth, libfreenect
 	doneCalibrating = false;
 	tablePlaneFound = false;
 	homographyFound = false;
+	pclPtr = (pcl::PointCloud<pcl::PointXYZ>::Ptr) new pcl::PointCloud<pcl::PointXYZ>;
 	createLookup();
+	createCloud(CalibDepth, CalibRGB, &calibPC);
 }
 
 personalRobotics::Calib::~Calib()
@@ -38,22 +40,26 @@ personalRobotics::Calib::~Calib()
 // Calibration methods
 void personalRobotics::Calib::findTable()
 {
+	size_t numCalibPoints = calibPC.points.size();
 	size_t numPoints = depthHeight*depthWidth;
 	pclPtr->clear();
+	pclPtr->width = depthWidth;
+	pclPtr->height = depthHeight;
 	pclPtr->resize(numPoints);
 	size_t dstPoint = 0;
-	for (size_t point = 0; point < numPoints; point++)
+	for (size_t point = 0; point < numCalibPoints; point++)
 	{
 		if (calibPC[point].z > minThreshold && calibPC[point].z < maxThreshold)
 		{
-			pclPtr.get()->points[dstPoint].x = calibPC[point].x;
-			pclPtr.get()->points[dstPoint].y = calibPC[point].y;
-			pclPtr.get()->points[dstPoint].z = calibPC[point].z;
+			pclPtr->points[dstPoint].x = calibPC[point].x;
+			pclPtr->points[dstPoint].y = calibPC[point].y;
+			pclPtr->points[dstPoint].z = calibPC[point].z;
 			dstPoint++;
 		}
 	}
 	pclPtr->resize(dstPoint);
-
+	
+	std::cout << "checkpoint 3 " << numPoints << " numCalibPoints =  " << numCalibPoints << " " << dstPoint << std::endl;
 	// Segment out the plane using least squares and RANSAC
 	pcl::SACSegmentation<pcl::PointXYZ> seg;
 	pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
@@ -64,7 +70,8 @@ void personalRobotics::Calib::findTable()
 	seg.setDistanceThreshold(ransacMargin);
 	seg.setInputCloud(pclPtr);
 	seg.segment(*inliers, *planePtr);
-
+	std::cout << "checkpoint 4" << std::endl;
+	
 	// Change the sign of all number so that 'd' in ax+by+cz+d is always positive
 	float signOfD = (planePtr->values[3]) / abs(planePtr->values[3]);
 	planePtr->values[0] = planePtr->values[0] * signOfD;
@@ -285,6 +292,7 @@ void personalRobotics::Calib::createCloud(const cv::Mat &depth, const cv::Mat &c
 {
   const float badPoint = std::numeric_limits<float>::quiet_NaN();
 
+  printf("num depth rows = %d, num depth cols = %d", depth.rows, depth.cols);
   #pragma omp parallel for
   for(int r = 0; r < depth.rows; ++r)
   {
