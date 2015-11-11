@@ -1,10 +1,17 @@
 #include "calib.h"
+#include <pcl/io/pcd_io.h>
+#include <pcl/visualization/cloud_viewer.h>
 
 // Constructor and Destructor
 personalRobotics::Calib::Calib(const cv::Mat CalibRGB, const cv::Mat CalibDepth, libfreenect2::Freenect2Device::ColorCameraParams color)
 {
 	CalibRGB.copyTo(calibRGB);
 	CalibDepth.copyTo(calibDepth);
+	calibPC = pcl::PointCloud<pcl::PointXYZRGB>::Ptr(new pcl::PointCloud<pcl::PointXYZRGB>());
+	calibPC->height = DEFAULT_COLOR_HEIGHT;
+	calibPC->width = DEFAULT_COLOR_WIDTH;
+	calibPC->is_dense = false;
+	calibPC->points.resize(calibPC->height * calibPC->width); 
 	colorWidth = DEFAULT_COLOR_WIDTH;
 	colorHeight = DEFAULT_COLOR_HEIGHT; 
 	depthWidth = DEFAULT_DEPTH_WIDTH;
@@ -29,7 +36,13 @@ personalRobotics::Calib::Calib(const cv::Mat CalibRGB, const cv::Mat CalibDepth,
 	homographyFound = false;
 	pclPtr = (pcl::PointCloud<pcl::PointXYZ>::Ptr) new pcl::PointCloud<pcl::PointXYZ>;
 	createLookup();
-	this->createCloud(CalibDepth, CalibRGB, calibPC);
+	createCloud(CalibDepth, CalibRGB, calibPC);
+	pcl::visualization::CloudViewer viewer("Simple Cloud Viewer");
+	viewer.showCloud(calibPC);
+	while(!viewer.wasStopped())
+	{
+	}
+	pcl::io::savePCDFileASCII ("test_pcd.pcd",*calibPC);
 }
 
 personalRobotics::Calib::~Calib()
@@ -146,7 +159,6 @@ void personalRobotics::Calib::createLookup()
   {
     *it = (r - cy) * fy;
   }
-
   lookupX = cv::Mat(1, colorWidth, CV_32F);
   it = lookupX.ptr<float>();
   for(size_t c = 0; c < colorWidth; ++c, ++it)
@@ -293,16 +305,14 @@ void personalRobotics::Calib::createCloud(const cv::Mat &depth, const cv::Mat &c
 {
   const float badPoint = std::numeric_limits<float>::quiet_NaN();
 
-  printf("num depth rows = %d, num depth cols = %d", depth.rows, depth.cols);
   #pragma omp parallel for
   for(int r = 0; r < depth.rows; ++r)
   {
     pcl::PointXYZRGB *itP = &cloud->points[r * depth.cols];
     const uint16_t *itD = depth.ptr<uint16_t>(r);
     const cv::Vec3b *itC = color.ptr<cv::Vec3b>(r);
-    const float y = lookupY.at<float>(0, r);
+    const float y = lookupY.at<float>(0,r);
     const float *itX = lookupX.ptr<float>();
-
     for(size_t c = 0; c < (size_t)depth.cols; ++c, ++itP, ++itD, ++itC, ++itX)
     {
       register const float depthValue = *itD / 1000.0f;
@@ -319,7 +329,7 @@ void personalRobotics::Calib::createCloud(const cv::Mat &depth, const cv::Mat &c
       itP->y = y * depthValue;
       itP->b = itC->val[0];
       itP->g = itC->val[1];
-      itP->r = itC->val[2];
+      itP->r = itC->val[2]; 
     }
   }
 }

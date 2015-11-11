@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
   signal(SIGINT,sigint_handler);
   protonect_shutdown = false;
 
-  libfreenect2::SyncMultiFrameListener listener(libfreenect2::Frame::Color | libfreenect2::Frame::Ir | libfreenect2::Frame::Depth);
+  libfreenect2::SyncMultiFrameListener listener(libfreenect2::Frame::Color | libfreenect2::Frame::Depth);
   libfreenect2::FrameMap frames;
   libfreenect2::Frame undistorted(512, 424, 4), registered(512, 424, 4);
 
@@ -194,22 +194,19 @@ int main(int argc, char *argv[])
 #else
   viewer_enabled = false;
 #endif
-
+ 
   // Eyekin calibration function calls
-  listener.waitForNewFrame(frames);
-
   cv::Mat calibrgb, calibdepth;
+  listener.waitForNewFrame(frames);
   libfreenect2::Frame *calibrgbFrame = frames[libfreenect2::Frame::Color];
   libfreenect2::Frame *calibdepthFrame = frames[libfreenect2::Frame::Depth];
   cv::Mat(calibrgbFrame->height, calibrgbFrame->width, CV_32FC1, calibrgbFrame->data).copyTo(calibrgb);
-  cv::Mat(calibdepthFrame->height, calibdepthFrame->width, CV_32FC1, calibdepthFrame->data).copyTo(calibdepth);
+  cv::Mat(calibdepthFrame->height, calibdepthFrame->width, CV_32FC1, calibdepthFrame->data).copyTo(calibdepth); 
+  listener.release(frames); 
 
   // Initializes an ObjectSegmentor object which contains a Calibration object
   personalRobotics::ObjectSegmentor OS(calibrgb, calibdepth, dev->getColorCameraParams());
   personalRobotics::Calib *calib = OS.getCalibPtr();
-  calib->createLookup();
-
-  listener.release(frames);
 
   // Checks to make sure everything is calibrated before moving on to the object segmentation code.
   while(!calib->isCalibrated())
